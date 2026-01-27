@@ -24,82 +24,93 @@ class _SidebarSectionState extends State<SidebarSection>
 
   @override
   Widget build(BuildContext context) {
-    final navProvider = context.watch<NavigationProvider>();
-    final isExpanded = navProvider.isSectionExpanded(widget.section.id);
-    final hasSelectedChild = navProvider.hasSelectedChild(widget.section.id);
+    return Consumer<NavigationProvider>(
+      builder: (context, navProvider, _) {
+        final isExpanded = navProvider.isSectionExpanded(widget.section.id);
+        final hasSelectedChild = navProvider.hasSelectedChild(widget.section.id);
+        final selectedItemId = navProvider.selectedItemId;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Section header
-        MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          child: GestureDetector(
-            onTap: () {
-              navProvider.toggleSection(widget.section.id);
-            },
-            child: AnimatedContainer(
-              duration: AppTheme.hoverDuration,
-              curve: AppTheme.dropdownCurve,
-              margin: const EdgeInsets.only(left: 12, right: 12, bottom: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: _isHovered
-                    ? AppTheme.sidebarItemHover
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  NavIcon(
-                    icon: widget.section.icon,
-                    color: widget.section.iconColor,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Section header
+            MouseRegion(
+              onEnter: (_) => setState(() => _isHovered = true),
+              onExit: (_) => setState(() => _isHovered = false),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  navProvider.toggleSection(widget.section.id);
+                },
+                child: AnimatedContainer(
+                  duration: AppTheme.hoverDuration,
+                  curve: AppTheme.dropdownCurve,
+                  margin: const EdgeInsets.only(left: 12, right: 12, bottom: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _isHovered
+                        ? AppTheme.sidebarItemHover
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.section.label,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: hasSelectedChild
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                        color: hasSelectedChild
-                            ? AppTheme.primaryBlue
-                            : AppTheme.textPrimary,
+                  child: Row(
+                    children: [
+                      NavIcon(
+                        icon: widget.section.icon,
+                        color: widget.section.iconColor,
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          widget.section.label,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: hasSelectedChild
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: hasSelectedChild
+                                ? AppTheme.primaryBlue
+                                : AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0,
+                        duration: AppTheme.accordionDuration,
+                        curve: AppTheme.accordionCurve,
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  AnimatedRotation(
-                    turns: isExpanded ? 0.25 : 0,
-                    duration: AppTheme.accordionDuration,
-                    curve: AppTheme.accordionCurve,
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-        // Expandable children
-        AnimatedCrossFade(
-          duration: AppTheme.accordionDuration,
-          crossFadeState:
-              isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-          firstChild: Column(
-            children: widget.section.children!
-                .map((child) => SidebarItem(item: child, isChild: true))
-                .toList(),
-          ),
-          secondChild: const SizedBox.shrink(),
-          sizeCurve: AppTheme.accordionCurve,
-        ),
-      ],
+            // Expandable children
+            AnimatedCrossFade(
+              duration: AppTheme.accordionDuration,
+              crossFadeState:
+                  isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+              firstChild: Column(
+                children: widget.section.children!.map((child) {
+                  return SidebarItem(
+                    key: ValueKey('${child.id}_$selectedItemId'),
+                    item: child,
+                    isChild: true,
+                    isSelected: selectedItemId == child.id,
+                    onTap: () => navProvider.selectItem(child.id),
+                  );
+                }).toList(),
+              ),
+              secondChild: const SizedBox.shrink(),
+              sizeCurve: AppTheme.accordionCurve,
+            ),
+          ],
+        );
+      },
     );
   }
 }

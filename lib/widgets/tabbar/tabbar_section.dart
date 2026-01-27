@@ -7,11 +7,15 @@ import '../../theme/app_theme.dart';
 class TabBarSection extends StatefulWidget {
   final NavItem section;
   final bool compact;
+  final bool hasSelectedChild;
+  final VoidCallback? onChildSelected;
 
   const TabBarSection({
     super.key,
     required this.section,
+    required this.hasSelectedChild,
     this.compact = false,
+    this.onChildSelected,
   });
 
   @override
@@ -28,80 +32,85 @@ class _TabBarSectionState extends State<TabBarSection> {
     final Offset offset = renderBox.localToGlobal(Offset.zero);
     final Size size = renderBox.size;
     final navProvider = context.read<NavigationProvider>();
-    final isBottom =
-        navProvider.tabBarPosition == TabBarPosition.bottom;
+    final isBottom = navProvider.tabBarPosition == TabBarPosition.bottom;
 
-    showMenu<String>(
+    showDialog<String>(
       context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        isBottom ? offset.dy - (widget.section.children!.length * 48 + 16) : offset.dy + size.height + 8,
-        offset.dx + size.width,
-        0,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      color: Colors.white,
-      elevation: 8,
-      items: widget.section.children!.map((child) {
-        final isSelected = navProvider.isItemSelected(child.id);
-        return PopupMenuItem<String>(
-          value: child.id,
-          child: Row(
-            children: [
-              Icon(
-                child.icon,
-                size: 20,
-                color: isSelected
-                    ? AppTheme.primaryBlue
-                    : (child.iconColor ?? AppTheme.textSecondary),
+      barrierColor: Colors.transparent,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Stack(
+          children: [
+            // Invisible barrier to detect taps outside
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => Navigator.of(dialogContext).pop(),
               ),
-              const SizedBox(width: 12),
-              Text(
-                child.label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected
-                      ? AppTheme.primaryBlue
-                      : AppTheme.textPrimary,
+            ),
+            Positioned(
+              left: offset.dx,
+              top: isBottom
+                  ? offset.dy - (widget.section.children!.length * 56 + 16)
+                  : offset.dy + size.height + 8,
+              child: Material(
+                color: Colors.transparent,
+                child: Consumer<NavigationProvider>(
+                  builder: (context, provider, _) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: AppTheme.dropdownShadow,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: IntrinsicWidth(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: widget.section.children!.map((child) {
+                            final isSelected = provider.isItemSelected(child.id);
+                            return _DropdownItem(
+                              item: child,
+                              isSelected: isSelected,
+                              onTap: () {
+                                Navigator.of(dialogContext).pop();
+                                provider.selectItem(child.id);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         );
-      }).toList(),
-    ).then((value) {
-      if (value != null) {
-        navProvider.selectItem(value);
-      }
-    });
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final navProvider = context.watch<NavigationProvider>();
-    final hasSelectedChild = navProvider.hasSelectedChild(widget.section.id);
-
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         key: _buttonKey,
+        behavior: HitTestBehavior.opaque,
         onTap: _showDropdown,
-        child: AnimatedContainer(
-          duration: AppTheme.hoverDuration,
-          curve: AppTheme.dropdownCurve,
+        child: Container(
           padding: EdgeInsets.symmetric(
             horizontal: widget.compact ? 12 : 16,
             vertical: widget.compact ? 6 : 8,
           ),
           decoration: BoxDecoration(
-            gradient: hasSelectedChild ? AppTheme.activeItemGradient : null,
-            color: !hasSelectedChild && _isHovered
-                ? Colors.black.withValues(alpha: 0.05)
-                : Colors.transparent,
+            gradient: widget.hasSelectedChild ? AppTheme.activeItemGradient : null,
+            color: widget.hasSelectedChild
+                ? null
+                : (_isHovered ? Colors.black.withValues(alpha: 0.05) : Colors.transparent),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
@@ -113,7 +122,7 @@ class _TabBarSectionState extends State<TabBarSection> {
                   Icon(
                     widget.section.icon,
                     size: widget.compact ? 20 : 24,
-                    color: hasSelectedChild
+                    color: widget.hasSelectedChild
                         ? Colors.white
                         : (widget.section.iconColor ?? AppTheme.textSecondary),
                   ),
@@ -121,7 +130,7 @@ class _TabBarSectionState extends State<TabBarSection> {
                   Icon(
                     Icons.arrow_drop_down_rounded,
                     size: 16,
-                    color: hasSelectedChild
+                    color: widget.hasSelectedChild
                         ? Colors.white
                         : AppTheme.textSecondary,
                   ),
@@ -133,9 +142,73 @@ class _TabBarSectionState extends State<TabBarSection> {
                 style: TextStyle(
                   fontSize: widget.compact ? 10 : 11,
                   fontWeight:
-                      hasSelectedChild ? FontWeight.w600 : FontWeight.w500,
+                      widget.hasSelectedChild ? FontWeight.w600 : FontWeight.w500,
                   color:
-                      hasSelectedChild ? Colors.white : AppTheme.textSecondary,
+                      widget.hasSelectedChild ? Colors.white : AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DropdownItem extends StatefulWidget {
+  final NavItem item;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _DropdownItem({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  State<_DropdownItem> createState() => _DropdownItemState();
+}
+
+class _DropdownItemState extends State<_DropdownItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: AppTheme.hoverDuration,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                : (_isHovered ? Colors.grey.withValues(alpha: 0.1) : Colors.transparent),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              Icon(
+                widget.item.icon,
+                size: 20,
+                color: widget.isSelected
+                    ? AppTheme.primaryBlue
+                    : (widget.item.iconColor ?? AppTheme.textSecondary),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                widget.item.label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: widget.isSelected
+                      ? AppTheme.primaryBlue
+                      : AppTheme.textPrimary,
                 ),
               ),
             ],

@@ -11,52 +11,68 @@ class TabBarNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final navProvider = context.watch<NavigationProvider>();
-    final isBottom = navProvider.tabBarPosition == TabBarPosition.bottom;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isCompact = screenWidth < 600;
+    return Consumer<NavigationProvider>(
+      builder: (context, navProvider, _) {
+        final isBottom = navProvider.tabBarPosition == TabBarPosition.bottom;
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isCompact = screenWidth < 600;
+        final selectedItemId = navProvider.selectedItemId;
 
-    return Positioned(
-      top: isBottom ? null : 16,
-      bottom: isBottom ? 24 : null,
-      left: 0,
-      right: 0,
-      child: AnimatedOpacity(
-        duration: AppTheme.modeTransitionDuration,
-        opacity: navProvider.isTabBarMode ? 1.0 : 0.0,
-        child: AnimatedSlide(
-          duration: AppTheme.modeTransitionDuration,
-          curve: AppTheme.modeTransitionCurve,
-          offset: navProvider.isTabBarMode
-              ? Offset.zero
-              : Offset(0, isBottom ? 1 : -1),
-          child: Center(
-            child: GlassmorphismContainer(
-              padding: EdgeInsets.symmetric(
-                horizontal: isCompact ? 8 : 12,
-                vertical: isCompact ? 6 : 8,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: _buildNavItems(navProvider, isCompact),
+        return Positioned(
+          top: isBottom ? null : 16,
+          bottom: isBottom ? 24 : null,
+          left: 0,
+          right: 0,
+          child: AnimatedOpacity(
+            duration: AppTheme.modeTransitionDuration,
+            opacity: navProvider.isTabBarMode ? 1.0 : 0.0,
+            child: AnimatedSlide(
+              duration: AppTheme.modeTransitionDuration,
+              curve: AppTheme.modeTransitionCurve,
+              offset: navProvider.isTabBarMode
+                  ? Offset.zero
+                  : Offset(0, isBottom ? 1 : -1),
+              child: Center(
+                child: GlassmorphismContainer(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 8 : 12,
+                    vertical: isCompact ? 6 : 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _buildNavItems(navProvider, isCompact, selectedItemId),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  List<Widget> _buildNavItems(NavigationProvider navProvider, bool isCompact) {
+  List<Widget> _buildNavItems(NavigationProvider navProvider, bool isCompact, String selectedItemId) {
     final widgets = <Widget>[];
 
     for (int i = 0; i < navProvider.items.length; i++) {
       final item = navProvider.items[i];
 
       if (item.hasChildren) {
-        widgets.add(TabBarSection(section: item, compact: isCompact));
+        final hasSelectedChild = navProvider.hasSelectedChild(item.id);
+        widgets.add(TabBarSection(
+          key: ValueKey('${item.id}_$selectedItemId'),
+          section: item,
+          compact: isCompact,
+          hasSelectedChild: hasSelectedChild,
+        ));
       } else {
-        widgets.add(TabBarItem(item: item, compact: isCompact));
+        widgets.add(TabBarItem(
+          key: ValueKey('${item.id}_$selectedItemId'),
+          item: item,
+          compact: isCompact,
+          isSelected: selectedItemId == item.id,
+          onTap: () => navProvider.selectItem(item.id),
+        ));
       }
 
       // Add divider between items (except for the last item)
@@ -105,6 +121,7 @@ class _ToggleButtonState extends State<_ToggleButton> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () {
           context.read<NavigationProvider>().toggleMode();
         },

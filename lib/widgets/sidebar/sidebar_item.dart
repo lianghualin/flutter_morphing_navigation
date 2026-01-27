@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../../models/nav_item.dart';
-import '../../providers/navigation_provider.dart';
 import '../../theme/app_theme.dart';
 import '../common/nav_icon.dart';
 
 class SidebarItem extends StatefulWidget {
   final NavItem item;
   final bool isChild;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   const SidebarItem({
     super.key,
     required this.item,
+    required this.isSelected,
+    required this.onTap,
     this.isChild = false,
   });
 
@@ -24,19 +26,13 @@ class _SidebarItemState extends State<SidebarItem> {
 
   @override
   Widget build(BuildContext context) {
-    final navProvider = context.watch<NavigationProvider>();
-    final isSelected = navProvider.isItemSelected(widget.item.id);
-
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTap: () {
-          navProvider.selectItem(widget.item.id);
-        },
-        child: AnimatedContainer(
-          duration: AppTheme.hoverDuration,
-          curve: AppTheme.dropdownCurve,
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: Container(
           margin: EdgeInsets.only(
             left: widget.isChild ? 32 : 12,
             right: 12,
@@ -44,10 +40,10 @@ class _SidebarItemState extends State<SidebarItem> {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            gradient: isSelected ? AppTheme.activeItemGradient : null,
-            color: !isSelected && _isHovered
-                ? AppTheme.sidebarItemHover
-                : Colors.transparent,
+            gradient: widget.isSelected ? AppTheme.activeItemGradient : null,
+            color: widget.isSelected
+                ? null
+                : (_isHovered ? AppTheme.sidebarItemHover : Colors.transparent),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -55,7 +51,7 @@ class _SidebarItemState extends State<SidebarItem> {
               NavIcon(
                 icon: widget.item.icon,
                 color: widget.item.iconColor,
-                isActive: isSelected,
+                isActive: widget.isSelected,
                 size: widget.isChild ? 18 : 22,
               ),
               const SizedBox(width: 12),
@@ -64,8 +60,8 @@ class _SidebarItemState extends State<SidebarItem> {
                   widget.item.label,
                   style: TextStyle(
                     fontSize: widget.isChild ? 14 : 15,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? Colors.white : AppTheme.textPrimary,
+                    fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: widget.isSelected ? Colors.white : AppTheme.textPrimary,
                   ),
                 ),
               ),
@@ -74,7 +70,7 @@ class _SidebarItemState extends State<SidebarItem> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: isSelected
+                    color: widget.isSelected
                         ? Colors.white.withValues(alpha: 0.2)
                         : AppTheme.primaryRed,
                     borderRadius: BorderRadius.circular(10),

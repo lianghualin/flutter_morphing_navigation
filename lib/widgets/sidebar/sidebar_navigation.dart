@@ -54,12 +54,21 @@ class SidebarNavigation extends StatelessWidget {
 
   List<Widget> _buildNavItems(NavigationProvider navProvider) {
     final widgets = <Widget>[];
+    final selectedItemId = navProvider.selectedItemId;
 
     for (final item in navProvider.items) {
       if (item.hasChildren) {
-        widgets.add(SidebarSection(section: item));
+        widgets.add(SidebarSection(
+          key: ValueKey(item.id),
+          section: item,
+        ));
       } else {
-        widgets.add(SidebarItem(item: item));
+        widgets.add(SidebarItem(
+          key: ValueKey('${item.id}_$selectedItemId'),
+          item: item,
+          isSelected: selectedItemId == item.id,
+          onTap: () => navProvider.selectItem(item.id),
+        ));
       }
     }
 
