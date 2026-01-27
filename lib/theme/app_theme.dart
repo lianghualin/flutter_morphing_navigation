@@ -17,7 +17,7 @@ class AppTheme {
   // Sidebar colors
   static const Color sidebarBackground = Colors.white;
   static const Color sidebarBorder = Color(0xFFE5E5EA);
-  static const Color sidebarItemHover = Color(0xFFF5F5F7);
+  static const Color sidebarItemHover = Color(0xFFE8E8ED);
 
   // Text colors
   static const Color textPrimary = Color(0xFF1D1D1F);

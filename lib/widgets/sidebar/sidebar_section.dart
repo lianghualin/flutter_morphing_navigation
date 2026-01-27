@@ -42,9 +42,7 @@ class _SidebarSectionState extends State<SidebarSection>
                 onTap: () {
                   navProvider.toggleSection(widget.section.id);
                 },
-                child: AnimatedContainer(
-                  duration: AppTheme.hoverDuration,
-                  curve: AppTheme.dropdownCurve,
+                child: Container(
                   margin: const EdgeInsets.only(left: 12, right: 12, bottom: 4),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(

@@ -26,6 +26,7 @@ class _SidebarItemState extends State<SidebarItem> {
 
   @override
   Widget build(BuildContext context) {
+    final hoverColor = _isHovered ? AppTheme.sidebarItemHover : Colors.transparent;
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -41,9 +42,7 @@ class _SidebarItemState extends State<SidebarItem> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             gradient: widget.isSelected ? AppTheme.activeItemGradient : null,
-            color: widget.isSelected
-                ? null
-                : (_isHovered ? AppTheme.sidebarItemHover : Colors.transparent),
+            color: widget.isSelected ? null : hoverColor,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
