@@ -59,11 +59,19 @@ class TabBarNavigation extends StatelessWidget {
 
       if (item.hasChildren) {
         final hasSelectedChild = navProvider.hasSelectedChild(item.id);
+        // Find the selected child item if any
+        final selectedChild = hasSelectedChild
+            ? item.children!.firstWhere(
+                (child) => child.id == selectedItemId,
+                orElse: () => item.children!.first,
+              )
+            : null;
         widgets.add(TabBarSection(
           key: ValueKey('${item.id}_$selectedItemId'),
           section: item,
           compact: isCompact,
           hasSelectedChild: hasSelectedChild,
+          selectedChild: selectedChild,
         ));
       } else {
         widgets.add(TabBarItem(

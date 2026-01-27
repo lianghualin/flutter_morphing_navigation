@@ -8,12 +8,14 @@ class TabBarSection extends StatefulWidget {
   final NavItem section;
   final bool compact;
   final bool hasSelectedChild;
+  final NavItem? selectedChild;
   final VoidCallback? onChildSelected;
 
   const TabBarSection({
     super.key,
     required this.section,
     required this.hasSelectedChild,
+    this.selectedChild,
     this.compact = false,
     this.onChildSelected,
   });
@@ -94,6 +96,9 @@ class _TabBarSectionState extends State<TabBarSection> {
 
   @override
   Widget build(BuildContext context) {
+    // Use selected child's icon/label if available, otherwise use section's
+    final displayItem = widget.selectedChild ?? widget.section;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -120,11 +125,11 @@ class _TabBarSectionState extends State<TabBarSection> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    widget.section.icon,
+                    displayItem.icon,
                     size: widget.compact ? 20 : 24,
                     color: widget.hasSelectedChild
                         ? Colors.white
-                        : (widget.section.iconColor ?? AppTheme.textSecondary),
+                        : (displayItem.iconColor ?? AppTheme.textSecondary),
                   ),
                   const SizedBox(width: 2),
                   Icon(
@@ -138,7 +143,7 @@ class _TabBarSectionState extends State<TabBarSection> {
               ),
               const SizedBox(height: 4),
               Text(
-                widget.section.label,
+                displayItem.label,
                 style: TextStyle(
                   fontSize: widget.compact ? 10 : 11,
                   fontWeight:
