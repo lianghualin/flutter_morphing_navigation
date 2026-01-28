@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import '../models/nav_item.dart';
 import '../theme/app_theme.dart';
 
-enum NavigationMode {
-  sidebar,
-  tabBar,
-}
+// Re-export types from navigation_controller for backwards compatibility
+export 'navigation_controller.dart' show MorphingNavigationMode, TabBarPosition;
+import 'navigation_controller.dart' show MorphingNavigationMode, TabBarPosition;
 
-enum TabBarPosition {
-  top,
-  bottom,
-}
+/// Alias for backwards compatibility
+typedef NavigationMode = MorphingNavigationMode;
 
 class NavigationProvider extends ChangeNotifier {
   NavigationMode _mode = NavigationMode.sidebar;

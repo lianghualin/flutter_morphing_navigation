@@ -1,9 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/nav_item.dart';
-import '../../providers/navigation_provider.dart' as nav;
-import '../../theme/app_theme.dart';
+import '../models/nav_item.dart';
+import '../controller/navigation_provider.dart' as nav;
+import '../theme/app_theme.dart';
 
 /// MorphingNavItem represents a single navigation item that morphs between
 /// sidebar and tab bar layouts.
@@ -446,123 +446,284 @@ class _MorphingNavItemState extends State<MorphingNavItem>
     final Size size = renderBox.size;
     final isBottom = widget.navProvider.tabBarPosition == nav.TabBarPosition.bottom;
 
-    showDialog<String>(
-      context: context,
-      barrierColor: Colors.transparent,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return Stack(
-          children: [
-            // Invisible barrier to detect taps outside
-            Positioned.fill(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => Navigator.of(dialogContext).pop(),
-              ),
-            ),
-            Positioned(
-              left: offset.dx,
-              top: isBottom
-                  ? offset.dy - (widget.item.children!.length * 56 + 16)
-                  : offset.dy + size.height + 8,
-              child: Material(
-                color: Colors.transparent,
-                child: Consumer<nav.NavigationProvider>(
-                  builder: (context, provider, _) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: AppTheme.dropdownShadow,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: IntrinsicWidth(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: widget.item.children!.map((child) {
-                            final isSelected = provider.isItemSelected(child.id);
-                            return _DropdownItem(
-                              item: child,
-                              isSelected: isSelected,
-                              onTap: () {
-                                Navigator.of(dialogContext).pop();
-                                provider.selectItem(child.id);
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+    Navigator.of(context).push(
+      _AnimatedDropdownRoute(
+        buttonOffset: offset,
+        buttonSize: size,
+        isBottom: isBottom,
+        children: widget.item.children!,
+        navProvider: widget.navProvider,
+      ),
     );
   }
 }
 
-/// Dropdown item for section children
-class _DropdownItem extends StatefulWidget {
+/// Animated dropdown route with scale and fade transitions
+class _AnimatedDropdownRoute extends PopupRoute<String> {
+  final Offset buttonOffset;
+  final Size buttonSize;
+  final bool isBottom;
+  final List<NavItem> children;
+  final nav.NavigationProvider navProvider;
+
+  _AnimatedDropdownRoute({
+    required this.buttonOffset,
+    required this.buttonSize,
+    required this.isBottom,
+    required this.children,
+    required this.navProvider,
+  });
+
+  @override
+  Color? get barrierColor => Colors.transparent;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  String? get barrierLabel => 'Dismiss dropdown';
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 200);
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 150);
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    return _AnimatedDropdown(
+      animation: animation,
+      buttonOffset: buttonOffset,
+      buttonSize: buttonSize,
+      isBottom: isBottom,
+      children: children,
+      navProvider: navProvider,
+      onDismiss: () => Navigator.of(context).pop(),
+    );
+  }
+}
+
+/// Animated dropdown widget
+class _AnimatedDropdown extends StatelessWidget {
+  final Animation<double> animation;
+  final Offset buttonOffset;
+  final Size buttonSize;
+  final bool isBottom;
+  final List<NavItem> children;
+  final nav.NavigationProvider navProvider;
+  final VoidCallback onDismiss;
+
+  const _AnimatedDropdown({
+    required this.animation,
+    required this.buttonOffset,
+    required this.buttonSize,
+    required this.isBottom,
+    required this.children,
+    required this.navProvider,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dropdownHeight = children.length * 56.0 + 16;
+    final top = isBottom
+        ? buttonOffset.dy - dropdownHeight
+        : buttonOffset.dy + buttonSize.height + 8;
+
+    // Scale animation: 0.8 -> 1.0
+    final scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    // Fade animation
+    final fadeAnimation = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOut,
+      reverseCurve: Curves.easeIn,
+    );
+
+    // Slide animation: slight vertical movement
+    final slideAnimation = Tween<Offset>(
+      begin: Offset(0, isBottom ? 0.1 : -0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    ));
+
+    return Stack(
+      children: [
+        // Invisible barrier to detect taps outside
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onDismiss,
+          ),
+        ),
+        Positioned(
+          left: buttonOffset.dx,
+          top: top,
+          child: SlideTransition(
+            position: slideAnimation,
+            child: ScaleTransition(
+              scale: scaleAnimation,
+              alignment: isBottom ? Alignment.bottomCenter : Alignment.topCenter,
+              child: FadeTransition(
+                opacity: fadeAnimation,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Consumer<nav.NavigationProvider>(
+                    builder: (context, provider, _) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: AppTheme.dropdownShadow,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: IntrinsicWidth(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: List.generate(children.length, (index) {
+                              final child = children[index];
+                              final isSelected = provider.isItemSelected(child.id);
+                              return _AnimatedDropdownItem(
+                                item: child,
+                                isSelected: isSelected,
+                                index: index,
+                                totalItems: children.length,
+                                parentAnimation: animation,
+                                onTap: () {
+                                  onDismiss();
+                                  provider.selectItem(child.id);
+                                },
+                              );
+                            }),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Animated dropdown item with staggered entrance animation
+class _AnimatedDropdownItem extends StatefulWidget {
   final NavItem item;
   final bool isSelected;
+  final int index;
+  final int totalItems;
+  final Animation<double> parentAnimation;
   final VoidCallback onTap;
 
-  const _DropdownItem({
+  const _AnimatedDropdownItem({
     required this.item,
     required this.isSelected,
+    required this.index,
+    required this.totalItems,
+    required this.parentAnimation,
     required this.onTap,
   });
 
   @override
-  State<_DropdownItem> createState() => _DropdownItemState();
+  State<_AnimatedDropdownItem> createState() => _AnimatedDropdownItemState();
 }
 
-class _DropdownItemState extends State<_DropdownItem> {
+class _AnimatedDropdownItemState extends State<_AnimatedDropdownItem> {
   bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: AppTheme.hoverDuration,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                : (_isHovered ? Colors.grey.withValues(alpha: 0.1) : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
+    // Staggered animation: each item starts slightly later
+    // Calculate interval for this item
+    final itemDelay = 0.1 * widget.index;
+    final itemEnd = 0.4 + itemDelay;
+    final clampedEnd = itemEnd.clamp(0.0, 1.0);
+    final clampedStart = itemDelay.clamp(0.0, clampedEnd - 0.1);
+
+    final itemAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: widget.parentAnimation,
+      curve: Interval(clampedStart, clampedEnd, curve: Curves.easeOutCubic),
+    ));
+
+    final slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: widget.parentAnimation,
+      curve: Interval(clampedStart, clampedEnd, curve: Curves.easeOutCubic),
+    ));
+
+    return AnimatedBuilder(
+      animation: itemAnimation,
+      builder: (context, child) {
+        return Opacity(
+          opacity: itemAnimation.value,
+          child: SlideTransition(
+            position: slideAnimation,
+            child: child,
           ),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            children: [
-              Icon(
-                widget.item.icon,
-                size: 20,
-                color: widget.isSelected
-                    ? AppTheme.primaryBlue
-                    : (widget.item.iconColor ?? AppTheme.textSecondary),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                widget.item.label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+        );
+      },
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: AppTheme.hoverDuration,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: widget.isSelected
+                  ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                  : (_isHovered ? Colors.grey.withValues(alpha: 0.1) : Colors.transparent),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  widget.item.icon,
+                  size: 20,
                   color: widget.isSelected
                       ? AppTheme.primaryBlue
-                      : AppTheme.textPrimary,
+                      : (widget.item.iconColor ?? AppTheme.textSecondary),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Text(
+                  widget.item.label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: widget.isSelected
+                        ? AppTheme.primaryBlue
+                        : AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

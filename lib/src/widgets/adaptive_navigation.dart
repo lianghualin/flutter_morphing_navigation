@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../providers/navigation_provider.dart' as nav;
+import '../controller/navigation_provider.dart' as nav;
 import '../theme/app_theme.dart';
-import 'morphing/morphing_navigation.dart';
+import 'morphing_navigation.dart';
 
 class AdaptiveNavigation extends StatefulWidget {
   final Widget child;

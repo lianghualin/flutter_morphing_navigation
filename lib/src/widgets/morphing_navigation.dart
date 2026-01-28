@@ -1,9 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/nav_item.dart';
-import '../../providers/navigation_provider.dart' as nav;
-import '../../theme/app_theme.dart';
+import '../models/nav_item.dart';
+import '../controller/navigation_provider.dart' as nav;
+import '../theme/app_theme.dart';
+import '../theme/navigation_theme.dart';
 import 'morphing_nav_item.dart';
 
 /// MorphingNavigation is the main orchestrator widget that handles the
@@ -161,8 +162,36 @@ class _MorphingNavigationState extends State<MorphingNavigation>
       t,
     )!;
 
-    // Shadow opacity increases with t
-    final shadowOpacity = lerpDouble(0, 0.1, t)!;
+    // Get theme for shadows
+    final theme = MorphingNavigationThemeProvider.maybeOf(context);
+    final tabBarShadow = theme?.effectiveTabBarShadow ?? [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.15),
+        blurRadius: 40,
+        spreadRadius: 0,
+        offset: const Offset(0, 8),
+      ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.08),
+        blurRadius: 12,
+        spreadRadius: 0,
+        offset: const Offset(0, 2),
+      ),
+    ];
+
+    // Interpolate shadow opacity based on t
+    final shadowMultiplier = t.clamp(0.0, 1.0);
+    final interpolatedShadow = tabBarShadow.map((shadow) {
+      return BoxShadow(
+        color: shadow.color.withValues(alpha: shadow.color.a * shadowMultiplier),
+        blurRadius: shadow.blurRadius * shadowMultiplier,
+        spreadRadius: shadow.spreadRadius * shadowMultiplier,
+        offset: Offset(
+          shadow.offset.dx * shadowMultiplier,
+          shadow.offset.dy * shadowMultiplier,
+        ),
+      );
+    }).toList();
 
     return Positioned(
       left: rect.left,
@@ -173,15 +202,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
         child: Container(
           decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: t > 0.1
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: shadowOpacity),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
+          boxShadow: t > 0.05 ? interpolatedShadow : null,
           // Sidebar mode: right border only
           border: t < 0.5
               ? Border(
@@ -440,8 +461,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
       child: Opacity(
         opacity: overallOpacity,
         child: _ToggleButton(
-          sidebarIcon: Icons.keyboard_double_arrow_left_rounded,
-          tabBarIcon: Icons.keyboard_double_arrow_right_rounded,
+          sidebarIcon: Icons.menu_open_rounded,
+          tabBarIcon: Icons.view_sidebar_rounded,
           sidebarIconOpacity: sidebarIconOpacity,
           tabBarIconOpacity: tabBarIconOpacity,
           onTap: navProvider.toggleMode,
@@ -452,7 +473,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     );
   }
 
-  /// Build dividers between items in tab bar mode
+  /// Build dividers between items in tab bar mode (currently disabled)
   List<Widget> _buildTabBarDividers(
     double t,
     Size screenSize,
@@ -460,36 +481,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     bool compact,
     bool isBottom,
   ) {
-    if (t < 0.5) return [];
-
-    final dividerOpacity = ((t - 0.5) * 2).clamp(0.0, 1.0);
-    final containerRect = _getTabBarContainerRect(screenSize, items, compact, isBottom);
-    final itemWidth = compact ? 56.0 : 72.0;
-    final horizontalPadding = compact ? 8.0 : 12.0;
-    final verticalPadding = 12.0;
-
-    final dividers = <Widget>[];
-
-    for (int i = 0; i <= items.length; i++) {
-      final left = containerRect.left + horizontalPadding + i * (itemWidth + 1) - 1;
-
-      dividers.add(
-        Positioned(
-          left: left,
-          top: containerRect.top + verticalPadding,
-          width: 1,
-          height: containerRect.height - verticalPadding * 2,
-          child: Opacity(
-            opacity: dividerOpacity * 0.15,
-            child: Container(
-              color: Colors.black,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return dividers;
+    // Dividers removed for cleaner look
+    return [];
   }
 
   @override
@@ -810,7 +803,7 @@ class _HeaderToggleButtonState extends State<_HeaderToggleButton> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(
-            Icons.view_sidebar_rounded,
+            Icons.menu_open_rounded,
             size: 20,
             color: AppTheme.textSecondary,
           ),

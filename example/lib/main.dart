@@ -1,8 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/navigation_provider.dart';
-import '../theme/app_theme.dart';
+import 'package:morphing_navigation/morphing_navigation.dart';
 
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => NavigationProvider(),
+      child: MaterialApp(
+        title: 'Morphing Navigation Demo',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: const MainLayout(),
+      ),
+    );
+  }
+}
+
+class MainLayout extends StatelessWidget {
+  const MainLayout({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: AdaptiveNavigation(
+        child: HomeScreen(),
+      ),
+    );
+  }
+}
+
+/// Demo home screen showing the navigation in action
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -13,24 +47,17 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      body: AnimatedPadding(
-        duration: AppTheme.modeTransitionDuration,
-        curve: AppTheme.modeTransitionCurve,
-        padding: EdgeInsets.only(
-          top: navProvider.isTabBarMode ? 100 : 0,
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(navProvider),
-              const SizedBox(height: 24),
-              _buildStatsGrid(screenWidth),
-              const SizedBox(height: 24),
-              _buildContentPanels(screenWidth),
-            ],
-          ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(navProvider),
+            const SizedBox(height: 24),
+            _buildStatsGrid(screenWidth),
+            const SizedBox(height: 24),
+            _buildContentPanels(screenWidth),
+          ],
         ),
       ),
     );
