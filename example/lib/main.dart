@@ -12,7 +12,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => NavigationProvider(),
+      create: (_) {
+        final provider = NavigationProvider();
+        // Set placeholder status to demonstrate the status panel feature
+        provider.setStatus(SystemStatus.placeholder());
+        return provider;
+      },
       child: MaterialApp(
         title: 'Morphing Navigation Demo',
         debugShowCheckedModeBanner: false,

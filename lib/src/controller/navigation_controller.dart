@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/nav_item.dart';
+import '../models/system_status.dart';
 import '../theme/navigation_theme.dart';
 
 /// The mode of the navigation display
@@ -67,6 +68,7 @@ class MorphingNavigationController extends ChangeNotifier {
   bool _isUserOverride = false;
   double _screenWidth = 1200;
   MorphingNavigationTheme _theme;
+  SystemStatus? _status;
 
   /// Callback invoked when an item is selected
   final OnItemSelected? onItemSelected;
@@ -83,6 +85,7 @@ class MorphingNavigationController extends ChangeNotifier {
   Set<String> get expandedSections => Set.unmodifiable(_expandedSections);
   double get screenWidth => _screenWidth;
   MorphingNavigationTheme get theme => _theme;
+  SystemStatus? get status => _status;
 
   /// The position of the tab bar based on screen width
   TabBarPosition get tabBarPosition {
@@ -243,4 +246,17 @@ class MorphingNavigationController extends ChangeNotifier {
 
   /// Get the currently selected NavItem
   NavItem? get selectedItem => getItemById(_selectedItemId);
+
+  /// Set the system status to display
+  void setStatus(SystemStatus? status) {
+    if (_status != status) {
+      _status = status;
+      notifyListeners();
+    }
+  }
+
+  /// Update status without notifying listeners (for frequent updates)
+  void updateStatusSilent(SystemStatus? status) {
+    _status = status;
+  }
 }

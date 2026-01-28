@@ -2,10 +2,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/nav_item.dart';
+import '../models/system_status.dart';
 import '../controller/navigation_provider.dart' as nav;
 import '../theme/app_theme.dart';
 import '../theme/navigation_theme.dart';
 import 'morphing_nav_item.dart';
+import 'status_panel.dart';
 
 /// MorphingNavigation is the main orchestrator widget that handles the
 /// continuous morphing animation between sidebar and tab bar navigation.
@@ -70,7 +72,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   }
 
   /// Calculate the width of the tab bar based on number of items
-  double _calculateTabBarWidth(List<NavItem> items, bool compact) {
+  double _calculateTabBarWidth(List<NavItem> items, bool compact, {bool hasStatus = false}) {
     // Count top-level items only (sections + regular items)
     final itemCount = items.length;
     final itemWidth = compact ? 56.0 : 72.0;
@@ -79,8 +81,15 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final dividerWidth = 1.0;
     final horizontalPadding = compact ? 8.0 : 12.0;
 
+    // Status indicator width (divider + time + warnings + 3 circles + user avatar + padding)
+    // Breakdown: padding(24) + divider(1) + spacing(12) + time(40) + spacing(12) +
+    //            warning(40) + spacing(8) + circles(78) + circle-spacing(12) +
+    //            spacing(8) + avatar(26) = ~260
+    final statusWidth = hasStatus ? (compact ? 240.0 : 260.0) : 0.0;
+
     return (itemCount * itemWidth) +
         toggleWidth +
+        statusWidth +
         (dividerCount * dividerWidth) +
         (horizontalPadding * 2);
   }
@@ -91,8 +100,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   }
 
   /// Get the tab bar container rect
-  Rect _getTabBarContainerRect(Size screenSize, List<NavItem> items, bool compact, bool isBottom) {
-    final tabBarWidth = _calculateTabBarWidth(items, compact);
+  Rect _getTabBarContainerRect(Size screenSize, List<NavItem> items, bool compact, bool isBottom, {bool hasStatus = false}) {
+    final tabBarWidth = _calculateTabBarWidth(items, compact, hasStatus: hasStatus);
     final left = (screenSize.width - tabBarWidth) / 2;
     final top = isBottom
         ? screenSize.height - _tabBarHeight - _tabBarBottomMargin
@@ -117,9 +126,10 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     Size screenSize,
     List<NavItem> items,
     bool compact,
-    bool isBottom,
-  ) {
-    final containerRect = _getTabBarContainerRect(screenSize, items, compact, isBottom);
+    bool isBottom, {
+    bool hasStatus = false,
+  }) {
+    final containerRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: hasStatus);
     final itemWidth = compact ? 56.0 : 72.0;
     final horizontalPadding = compact ? 8.0 : 12.0;
     final verticalPadding = 8.0;
@@ -139,10 +149,11 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     double t,
     List<NavItem> items,
     bool compact,
-    bool isBottom,
-  ) {
+    bool isBottom, {
+    bool hasStatus = false,
+  }) {
     final sidebarRect = _getSidebarContainerRect(screenSize);
-    final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom);
+    final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: hasStatus);
 
     final rect = Rect.lerp(sidebarRect, tabBarRect, t)!;
     final borderRadius = lerpDouble(16, 32, t)!;
@@ -404,6 +415,61 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     );
   }
 
+  /// Build the sidebar status panel (shows in sidebar mode, fades during transition)
+  Widget _buildSidebarStatusPanel(double t, Size screenSize, SystemStatus? status) {
+    if (status == null) return const SizedBox.shrink();
+
+    // Fade out in first 30% of transition
+    final opacity = (1.0 - t * 3.33).clamp(0.0, 1.0);
+    if (opacity <= 0) return const SizedBox.shrink();
+
+    final width = lerpDouble(_sidebarWidth, 0, t)!;
+
+    return Positioned(
+      bottom: _footerHeight,
+      left: 0,
+      width: width,
+      child: SidebarStatusPanel(
+        status: status,
+        opacity: opacity,
+      ),
+    );
+  }
+
+  /// Build the tab bar status indicator (shows in tab bar mode, fades in during transition)
+  Widget _buildTabBarStatusIndicator(
+    double t,
+    Size screenSize,
+    List<NavItem> items,
+    bool compact,
+    bool isBottom,
+    SystemStatus? status,
+  ) {
+    if (status == null) return const SizedBox.shrink();
+
+    // Fade in during last 30% of transition
+    final opacity = ((t - 0.7) * 3.33).clamp(0.0, 1.0);
+    if (opacity <= 0) return const SizedBox.shrink();
+
+    final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: true);
+    final itemWidth = compact ? 56.0 : 72.0;
+    final toggleWidth = compact ? 48.0 : 56.0;
+    final horizontalPadding = compact ? 8.0 : 12.0;
+
+    // Position after toggle button
+    final left = tabBarRect.left + horizontalPadding + items.length * (itemWidth + 1) + toggleWidth;
+
+    return Positioned(
+      left: left,
+      top: tabBarRect.top,
+      height: tabBarRect.height,
+      child: TabBarStatusIndicator(
+        status: status,
+        opacity: opacity,
+      ),
+    );
+  }
+
   /// Build the toggle button
   Widget _buildToggleButton(
     double t,
@@ -411,8 +477,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     List<NavItem> items,
     bool compact,
     bool isBottom,
-    nav.NavigationProvider navProvider,
-  ) {
+    nav.NavigationProvider navProvider, {
+    bool hasStatus = false,
+  }) {
     // In sidebar mode (t=0): hidden (header has its own toggle)
     // In tabbar mode (t=1): show at end of items
     // During transition: appears and moves to tabbar position
@@ -429,7 +496,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
       32,
     );
 
-    final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom);
+    final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: hasStatus);
     final toggleWidth = compact ? 48.0 : 56.0;
     final itemWidth = compact ? 56.0 : 72.0;
     final horizontalPadding = compact ? 8.0 : 12.0;
@@ -505,6 +572,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
             final items = navProvider.items;
             final compact = screenSize.width < 600;
             final isBottom = navProvider.tabBarPosition == nav.TabBarPosition.bottom;
+            final status = navProvider.status;
+            final hasStatus = status != null;
 
             return AnimatedBuilder(
               animation: _controller,
@@ -515,7 +584,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                   clipBehavior: Clip.none,
                   children: [
                     // Background container
-                    _buildMorphingContainer(screenSize, t, items, compact, isBottom),
+                    _buildMorphingContainer(screenSize, t, items, compact, isBottom, hasStatus: hasStatus),
 
                     // Header (fades out)
                     _buildHeader(t, screenSize, navProvider),
@@ -531,13 +600,20 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                       compact,
                       isBottom,
                       navProvider,
+                      hasStatus: hasStatus,
                     ),
 
                     // Tab bar dividers
                     ..._buildTabBarDividers(t, screenSize, items, compact, isBottom),
 
                     // Toggle button
-                    _buildToggleButton(t, screenSize, items, compact, isBottom, navProvider),
+                    _buildToggleButton(t, screenSize, items, compact, isBottom, navProvider, hasStatus: hasStatus),
+
+                    // Sidebar status panel (fades out)
+                    _buildSidebarStatusPanel(t, screenSize, status),
+
+                    // Tab bar status indicator (fades in)
+                    _buildTabBarStatusIndicator(t, screenSize, items, compact, isBottom, status),
 
                     // Footer (fades out)
                     _buildFooter(t, screenSize),
@@ -558,8 +634,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     List<NavItem> items,
     bool compact,
     bool isBottom,
-    nav.NavigationProvider navProvider,
-  ) {
+    nav.NavigationProvider navProvider, {
+    bool hasStatus = false,
+  }) {
     final widgets = <Widget>[];
     int sidebarIndex = 0;
 
@@ -569,7 +646,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
       // Calculate sidebar position accounting for expanded sections
       final sidebarRect = _getSidebarItemRect(sidebarIndex, screenSize);
-      final tabBarRect = _getTabBarItemRect(tabBarIndex, screenSize, items, compact, isBottom);
+      final tabBarRect = _getTabBarItemRect(tabBarIndex, screenSize, items, compact, isBottom, hasStatus: hasStatus);
 
       // For sections, determine what to display
       // In sidebar mode (t < 0.5): always show parent item, NOT highlighted

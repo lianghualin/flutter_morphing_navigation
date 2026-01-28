@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/nav_item.dart';
+import '../models/system_status.dart';
 import '../theme/app_theme.dart';
 
 // Re-export types from navigation_controller for backwards compatibility
@@ -15,12 +16,14 @@ class NavigationProvider extends ChangeNotifier {
   final Set<String> _expandedSections = {'library'};
   bool _isUserOverride = false;
   double _screenWidth = 1200;
+  SystemStatus? _status;
 
   // Navigation items
   final List<NavItem> items = NavItem.defaultItems;
 
   // Getters
   NavigationMode get mode => _mode;
+  SystemStatus? get status => _status;
   bool get isTabBarMode => _mode == NavigationMode.tabBar;
   bool get isSidebarMode => _mode == NavigationMode.sidebar;
   String get selectedItemId => _selectedItemId;
@@ -154,5 +157,18 @@ class NavigationProvider extends ChangeNotifier {
     if (!section.hasChildren) return false;
 
     return section.children!.any((child) => child.id == _selectedItemId);
+  }
+
+  // Set system status
+  void setStatus(SystemStatus? status) {
+    if (_status != status) {
+      _status = status;
+      notifyListeners();
+    }
+  }
+
+  // Update status without notifying (for frequent updates like time)
+  void updateStatusSilent(SystemStatus? status) {
+    _status = status;
   }
 }

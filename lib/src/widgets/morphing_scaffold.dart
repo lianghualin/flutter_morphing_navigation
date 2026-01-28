@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../controller/navigation_controller.dart';
 import '../controller/navigation_provider.dart';
 import '../models/nav_item.dart';
+import '../models/system_status.dart';
 import '../theme/navigation_theme.dart';
 import 'navigation_header.dart';
 import 'morphing_navigation.dart' as internal;
@@ -99,6 +100,10 @@ class MorphingNavigationScaffold extends StatefulWidget {
   /// Whether to show the footer
   final bool showFooter;
 
+  /// System status to display in the navigation
+  /// Shows CPU, memory, disk usage, time, warnings, and user name
+  final SystemStatus? status;
+
   /// Creates a morphing navigation scaffold.
   const MorphingNavigationScaffold({
     super.key,
@@ -115,6 +120,7 @@ class MorphingNavigationScaffold extends StatefulWidget {
     this.enableKeyboardShortcuts = true,
     this.showHeader = true,
     this.showFooter = true,
+    this.status,
   });
 
   @override
@@ -144,6 +150,11 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
       theme: _theme,
     );
 
+    // Set initial status if provided
+    if (widget.status != null) {
+      _controller.setStatus(widget.status);
+    }
+
     _paddingController = AnimationController(
       vsync: this,
       duration: _theme.modeTransitionDuration,
@@ -169,6 +180,11 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
     // Update theme if changed
     if (widget.theme != oldWidget.theme) {
       _controller.setTheme(_theme);
+    }
+
+    // Update status if changed
+    if (widget.status != oldWidget.status) {
+      _controller.setStatus(widget.status);
     }
   }
 
@@ -341,4 +357,10 @@ class _LegacyProviderAdapter extends NavigationProvider {
 
   @override
   bool hasSelectedChild(String sectionId) => _controller.hasSelectedChild(sectionId);
+
+  @override
+  SystemStatus? get status => _controller.status;
+
+  @override
+  void setStatus(SystemStatus? status) => _controller.setStatus(status);
 }

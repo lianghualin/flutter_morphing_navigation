@@ -8,6 +8,7 @@ library;
 
 // Models
 export 'src/models/nav_item.dart';
+export 'src/models/system_status.dart';
 
 // Controller
 export 'src/controller/navigation_provider.dart';
@@ -23,3 +24,4 @@ export 'src/widgets/morphing_navigation.dart';
 export 'src/widgets/morphing_nav_item.dart';
 export 'src/widgets/navigation_header.dart';
 export 'src/widgets/morphing_scaffold.dart';
+export 'src/widgets/status_panel.dart';
