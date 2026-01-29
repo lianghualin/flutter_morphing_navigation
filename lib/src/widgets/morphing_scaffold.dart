@@ -9,13 +9,28 @@ import '../theme/navigation_theme.dart';
 import 'navigation_header.dart';
 import 'morphing_navigation.dart' as internal;
 
+/// Page transition types for switching between pages
+enum PageTransitionType {
+  /// No animation, instant switch
+  none,
+
+  /// Fade in/out transition
+  fade,
+
+  /// Slide horizontally (left/right)
+  slideHorizontal,
+
+  /// Slide vertically (up/down)
+  slideVertical,
+}
+
 /// A scaffold widget that provides morphing navigation functionality.
 ///
 /// This is the main entry point for using the morphing navigation package.
 /// It provides a complete navigation solution that morphs between sidebar
 /// and tab bar layouts.
 ///
-/// ## Basic Usage
+/// ## Basic Usage with Child
 ///
 /// ```dart
 /// MorphingNavigationScaffold(
@@ -27,6 +42,22 @@ import 'morphing_navigation.dart' as internal;
 ///     // Handle navigation
 ///   },
 ///   child: YourContentWidget(),
+/// )
+/// ```
+///
+/// ## Using Pages Map (Automatic Page Switching)
+///
+/// ```dart
+/// MorphingNavigationScaffold(
+///   items: [
+///     NavItem(id: 'home', label: 'Home', icon: Icons.home),
+///     NavItem(id: 'settings', label: 'Settings', icon: Icons.settings),
+///   ],
+///   pages: {
+///     'home': HomePage(),
+///     'settings': SettingsPage(),
+///   },
+///   pageTransitionType: PageTransitionType.fade,
 /// )
 /// ```
 ///
@@ -64,8 +95,22 @@ class MorphingNavigationScaffold extends StatefulWidget {
   /// The navigation items to display
   final List<NavItem> items;
 
-  /// The main content widget
-  final Widget child;
+  /// The main content widget (use either [child] or [pages], not both)
+  final Widget? child;
+
+  /// Map of page IDs to page widgets for automatic page switching.
+  /// When provided, the scaffold will automatically display the page
+  /// matching the selected navigation item ID.
+  /// Use either [child] or [pages], not both.
+  final Map<String, Widget>? pages;
+
+  /// The type of transition animation when switching pages.
+  /// Only applies when [pages] is used.
+  final PageTransitionType pageTransitionType;
+
+  /// Duration of the page transition animation.
+  /// Only applies when [pages] is used and [pageTransitionType] is not [PageTransitionType.none].
+  final Duration pageTransitionDuration;
 
   /// Optional theme configuration
   final MorphingNavigationTheme? theme;
@@ -104,11 +149,11 @@ class MorphingNavigationScaffold extends StatefulWidget {
   /// Shows CPU, memory, disk usage, time, warnings, and user name
   final SystemStatus? status;
 
-  /// Creates a morphing navigation scaffold.
+  /// Creates a morphing navigation scaffold with a single child widget.
   const MorphingNavigationScaffold({
     super.key,
     required this.items,
-    required this.child,
+    required Widget this.child,
     this.theme,
     this.header,
     this.footer,
@@ -121,7 +166,34 @@ class MorphingNavigationScaffold extends StatefulWidget {
     this.showHeader = true,
     this.showFooter = true,
     this.status,
-  });
+  })  : pages = null,
+        pageTransitionType = PageTransitionType.none,
+        pageTransitionDuration = const Duration(milliseconds: 300);
+
+  /// Creates a morphing navigation scaffold with automatic page switching.
+  ///
+  /// The [pages] map should contain entries where keys match the navigation
+  /// item IDs and values are the corresponding page widgets.
+  const MorphingNavigationScaffold.withPages({
+    super.key,
+    required this.items,
+    required Map<String, Widget> this.pages,
+    this.pageTransitionType = PageTransitionType.fade,
+    this.pageTransitionDuration = const Duration(milliseconds: 300),
+    this.theme,
+    this.header,
+    this.footer,
+    this.initialSelectedId,
+    this.initialExpandedSections,
+    this.initialMode = MorphingNavigationMode.sidebar,
+    this.onItemSelected,
+    this.onModeChanged,
+    this.enableKeyboardShortcuts = true,
+    this.showHeader = true,
+    this.showFooter = true,
+    this.status,
+  })  : child = null,
+        assert(pages.length > 0, 'pages map must not be empty');
 
   @override
   State<MorphingNavigationScaffold> createState() => _MorphingNavigationScaffoldState();
@@ -130,6 +202,7 @@ class MorphingNavigationScaffold extends StatefulWidget {
 class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
     with SingleTickerProviderStateMixin {
   late MorphingNavigationController _controller;
+  late _LegacyProviderAdapter _legacyProvider;
   final FocusNode _focusNode = FocusNode();
   late AnimationController _paddingController;
   late Animation<double> _paddingAnimation;
@@ -149,6 +222,9 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
       onModeChanged: widget.onModeChanged,
       theme: _theme,
     );
+
+    // Create the legacy provider adapter once in initState
+    _legacyProvider = _LegacyProviderAdapter(_controller);
 
     // Set initial status if provided
     if (widget.status != null) {
@@ -192,6 +268,7 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
   void dispose() {
     _focusNode.dispose();
     _paddingController.dispose();
+    _legacyProvider.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -215,7 +292,7 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
     });
 
     return ChangeNotifierProvider<NavigationProvider>.value(
-      value: _createLegacyProvider(),
+      value: _legacyProvider,
       child: MorphingNavigationThemeProvider(
         theme: _theme,
         child: ListenableBuilder(
@@ -233,6 +310,16 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
               _previousMode = _controller.mode;
             }
 
+            // Determine the content widget (child or page container)
+            final contentWidget = widget.pages != null
+                ? _PageContainer(
+                    pages: widget.pages!,
+                    selectedItemId: _controller.selectedItemId,
+                    transitionType: widget.pageTransitionType,
+                    transitionDuration: widget.pageTransitionDuration,
+                  )
+                : widget.child!;
+
             return KeyboardListener(
               focusNode: _focusNode,
               autofocus: true,
@@ -247,7 +334,7 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
                         padding: EdgeInsets.only(
                           left: _paddingAnimation.value,
                         ),
-                        child: widget.child,
+                        child: contentWidget,
                       );
                     },
                   ),
@@ -262,13 +349,6 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
         ),
       ),
     );
-  }
-
-  /// Creates a legacy NavigationProvider for backward compatibility
-  /// with the internal widgets that still use it
-  NavigationProvider _createLegacyProvider() {
-    // Create a wrapper that syncs with our controller
-    return _LegacyProviderAdapter(_controller);
   }
 }
 
@@ -363,4 +443,78 @@ class _LegacyProviderAdapter extends NavigationProvider {
 
   @override
   void setStatus(SystemStatus? status) => _controller.setStatus(status);
+}
+
+/// Internal widget that handles automatic page switching based on navigation selection
+class _PageContainer extends StatelessWidget {
+  final Map<String, Widget> pages;
+  final String selectedItemId;
+  final PageTransitionType transitionType;
+  final Duration transitionDuration;
+
+  const _PageContainer({
+    required this.pages,
+    required this.selectedItemId,
+    required this.transitionType,
+    required this.transitionDuration,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Get the page for the selected item, or fall back to first page
+    final page = pages[selectedItemId] ?? pages.values.first;
+
+    // If no transition, just return the page directly
+    if (transitionType == PageTransitionType.none) {
+      return KeyedSubtree(
+        key: ValueKey(selectedItemId),
+        child: page,
+      );
+    }
+
+    // Use AnimatedSwitcher for transitions
+    return AnimatedSwitcher(
+      duration: transitionDuration,
+      switchInCurve: Curves.easeInOut,
+      switchOutCurve: Curves.easeInOut,
+      transitionBuilder: (child, animation) {
+        return _buildTransition(child, animation);
+      },
+      child: KeyedSubtree(
+        key: ValueKey(selectedItemId),
+        child: page,
+      ),
+    );
+  }
+
+  Widget _buildTransition(Widget child, Animation<double> animation) {
+    switch (transitionType) {
+      case PageTransitionType.none:
+        return child;
+
+      case PageTransitionType.fade:
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
+
+      case PageTransitionType.slideHorizontal:
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1.0, 0.0),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        );
+
+      case PageTransitionType.slideVertical:
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.0, 1.0),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        );
+    }
+  }
 }

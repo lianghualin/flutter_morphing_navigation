@@ -495,14 +495,18 @@ class _AnimatedDropdownRoute extends PopupRoute<String> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    return _AnimatedDropdown(
-      animation: animation,
-      buttonOffset: buttonOffset,
-      buttonSize: buttonSize,
-      isBottom: isBottom,
-      children: children,
-      navProvider: navProvider,
-      onDismiss: () => Navigator.of(context).pop(),
+    // Wrap with Provider so Consumer inside dropdown can find it
+    return ChangeNotifierProvider<nav.NavigationProvider>.value(
+      value: navProvider,
+      child: _AnimatedDropdown(
+        animation: animation,
+        buttonOffset: buttonOffset,
+        buttonSize: buttonSize,
+        isBottom: isBottom,
+        children: children,
+        navProvider: navProvider,
+        onDismiss: () => Navigator.of(context).pop(),
+      ),
     );
   }
 }
