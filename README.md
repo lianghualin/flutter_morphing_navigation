@@ -14,6 +14,7 @@ A Flutter package that provides an iPadOS-style adaptive navigation widget that 
 - **Badge support** for notification indicators
 - **Glassmorphism effect** in tab bar mode
 - **Icon-only tab bar** - clean icons with tooltip on hover
+- **Automatic page header** - optional header showing current page icon and title
 - **System status panel** - display CPU, memory, disk usage and more
 - **Keyboard shortcuts** - press 'T' to toggle between modes
 
@@ -94,6 +95,7 @@ MorphingNavigationScaffold.withPages(
   ],
   initialSelectedId: 'home',
   pageTransitionType: PageTransitionType.fade,
+  showPageHeader: true,  // Automatically shows page icon and title
   pages: {
     'home': HomePage(),
     'search': SearchPage(),
@@ -101,6 +103,10 @@ MorphingNavigationScaffold.withPages(
   },
 )
 ```
+
+#### Page Header
+
+When `showPageHeader: true` is set, the scaffold automatically displays a header at the top of each page showing the current navigation item's icon and label. This is especially useful in tab bar mode where the navigation only shows icons - users can always see which page they're on.
 
 #### Page Transition Types
 
@@ -159,6 +165,7 @@ The main widget that provides the morphing navigation functionality.
 | `pages` | `Map<String, Widget>` | Page widgets keyed by item ID (use with `.withPages()`) |
 | `pageTransitionType` | `PageTransitionType` | Animation type for page switches (default: fade) |
 | `pageTransitionDuration` | `Duration` | Duration of page transition (default: 300ms) |
+| `showPageHeader` | `bool` | Show automatic page header with icon and title (default: false) |
 | `theme` | `MorphingNavigationTheme?` | Optional theme configuration |
 | `header` | `MorphingNavHeader?` | Optional header configuration |
 | `footer` | `MorphingNavFooter?` | Optional footer configuration |

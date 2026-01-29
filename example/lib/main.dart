@@ -30,6 +30,7 @@ class MainLayout extends StatelessWidget {
         initialSelectedId: 'home',
         pageTransitionType: PageTransitionType.fade,
         pageTransitionDuration: const Duration(milliseconds: 200),
+        showPageHeader: true,
         status: SystemStatus.placeholder(),
         pages: {
           // Main pages
@@ -50,17 +51,11 @@ class MainLayout extends StatelessWidget {
   }
 }
 
-/// Base page template with consistent styling
+/// Base page template with consistent styling (content only, header provided by scaffold)
 class _BasePage extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
   final Widget content;
 
   const _BasePage({
-    required this.title,
-    required this.icon,
-    required this.color,
     required this.content,
   });
 
@@ -69,40 +64,9 @@ class _BasePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 24),
-            content,
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: content,
       ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: color, size: 28),
-        ),
-        const SizedBox(width: 16),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -116,9 +80,6 @@ class HomePage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return _BasePage(
-      title: 'Home',
-      icon: Icons.home_rounded,
-      color: const Color(0xFF007AFF),
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -446,9 +407,6 @@ class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Favorites',
-      icon: Icons.favorite_rounded,
-      color: const Color(0xFFFF2D55),
       content: _buildFavoritesList(),
     );
   }
@@ -530,9 +488,6 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Settings',
-      icon: Icons.settings_rounded,
-      color: const Color(0xFF8E8E93),
       content: _buildSettingsList(),
     );
   }
@@ -615,9 +570,6 @@ class PhotosPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Photos',
-      icon: Icons.photo_rounded,
-      color: const Color(0xFF34C759),
       content: _buildPhotoGrid(),
     );
   }
@@ -653,9 +605,6 @@ class VideosPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Videos',
-      icon: Icons.videocam_rounded,
-      color: const Color(0xFFFF9500),
       content: _buildVideoList(),
     );
   }
@@ -728,9 +677,6 @@ class AlbumsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Albums',
-      icon: Icons.photo_album_rounded,
-      color: const Color(0xFFFF2D55),
       content: _buildAlbumsGrid(),
     );
   }
@@ -790,9 +736,6 @@ class CategoriesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Categories',
-      icon: Icons.category_rounded,
-      color: const Color(0xFFFF3B30),
       content: _buildCategoriesGrid(),
     );
   }
@@ -847,9 +790,6 @@ class TrendingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Trending',
-      icon: Icons.trending_up_rounded,
-      color: const Color(0xFF34C759),
       content: _buildTrendingList(),
     );
   }
@@ -923,9 +863,6 @@ class FeaturedPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _BasePage(
-      title: 'Featured',
-      icon: Icons.star_rounded,
-      color: const Color(0xFFFFCC00),
       content: _buildFeaturedContent(),
     );
   }

@@ -149,6 +149,12 @@ class MorphingNavigationScaffold extends StatefulWidget {
   /// Shows CPU, memory, disk usage, time, warnings, and user name
   final SystemStatus? status;
 
+  /// Whether to show a page header with icon and title in the content area.
+  /// This is especially useful in tab bar mode where navigation shows only icons.
+  /// The header automatically displays the current page's icon and label.
+  /// Only applies when [pages] is used.
+  final bool showPageHeader;
+
   /// Creates a morphing navigation scaffold with a single child widget.
   const MorphingNavigationScaffold({
     super.key,
@@ -168,7 +174,8 @@ class MorphingNavigationScaffold extends StatefulWidget {
     this.status,
   })  : pages = null,
         pageTransitionType = PageTransitionType.none,
-        pageTransitionDuration = const Duration(milliseconds: 300);
+        pageTransitionDuration = const Duration(milliseconds: 300),
+        showPageHeader = false;
 
   /// Creates a morphing navigation scaffold with automatic page switching.
   ///
@@ -180,6 +187,7 @@ class MorphingNavigationScaffold extends StatefulWidget {
     required Map<String, Widget> this.pages,
     this.pageTransitionType = PageTransitionType.fade,
     this.pageTransitionDuration = const Duration(milliseconds: 300),
+    this.showPageHeader = false,
     this.theme,
     this.header,
     this.footer,
@@ -314,9 +322,11 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
             final contentWidget = widget.pages != null
                 ? _PageContainer(
                     pages: widget.pages!,
+                    items: widget.items,
                     selectedItemId: _controller.selectedItemId,
                     transitionType: widget.pageTransitionType,
                     transitionDuration: widget.pageTransitionDuration,
+                    showPageHeader: widget.showPageHeader,
                   )
                 : widget.child!;
 
@@ -448,27 +458,49 @@ class _LegacyProviderAdapter extends NavigationProvider {
 /// Internal widget that handles automatic page switching based on navigation selection
 class _PageContainer extends StatelessWidget {
   final Map<String, Widget> pages;
+  final List<NavItem> items;
   final String selectedItemId;
   final PageTransitionType transitionType;
   final Duration transitionDuration;
+  final bool showPageHeader;
 
   const _PageContainer({
     required this.pages,
+    required this.items,
     required this.selectedItemId,
     required this.transitionType,
     required this.transitionDuration,
+    required this.showPageHeader,
   });
+
+  /// Find the NavItem matching the selected ID (including children)
+  NavItem? _findNavItem(String itemId) {
+    for (final item in items) {
+      if (item.id == itemId) return item;
+      if (item.hasChildren) {
+        for (final child in item.children!) {
+          if (child.id == itemId) return child;
+        }
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     // Get the page for the selected item, or fall back to first page
     final page = pages[selectedItemId] ?? pages.values.first;
 
+    // Wrap page with header if enabled
+    final pageContent = showPageHeader
+        ? _buildPageWithHeader(context, page)
+        : page;
+
     // If no transition, just return the page directly
     if (transitionType == PageTransitionType.none) {
       return KeyedSubtree(
         key: ValueKey(selectedItemId),
-        child: page,
+        child: pageContent,
       );
     }
 
@@ -482,7 +514,49 @@ class _PageContainer extends StatelessWidget {
       },
       child: KeyedSubtree(
         key: ValueKey(selectedItemId),
-        child: page,
+        child: pageContent,
+      ),
+    );
+  }
+
+  Widget _buildPageWithHeader(BuildContext context, Widget page) {
+    final navItem = _findNavItem(selectedItemId);
+    if (navItem == null) return page;
+
+    final color = navItem.iconColor ?? Theme.of(context).primaryColor;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Page header
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(navItem.icon, color: color, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  navItem.label,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Page content
+          Expanded(child: page),
+        ],
       ),
     );
   }
