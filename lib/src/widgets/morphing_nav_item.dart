@@ -355,53 +355,32 @@ class _MorphingNavItemState extends State<MorphingNavItem>
     );
   }
 
-  /// Build tab bar layout (Column with icon over label)
+  /// Build tab bar layout (icon only, no label, with tooltip on hover)
   Widget _buildTabBarLayout(Color iconColor, Color textColor, bool showLabel) {
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: widget.compact ? 6 : 8,
-        vertical: widget.compact ? 2 : 4,
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
+    return Tooltip(
+      message: widget.displayItem.label,
+      waitDuration: const Duration(milliseconds: 300),
+      preferBelow: false,
+      child: Center(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  widget.displayItem.icon,
-                  size: widget.compact ? 20 : 24,
-                  color: iconColor,
-                ),
-                if (widget.isSection) ...[
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.arrow_drop_down_rounded,
-                    size: 16,
-                    color: widget.isSelected ? Colors.white : AppTheme.textSecondary,
-                  ),
-                ],
-              ],
+            Icon(
+              widget.displayItem.icon,
+              size: widget.compact ? 26 : 30,
+              color: iconColor,
             ),
-            if (showLabel) ...[
-              const SizedBox(height: 2),
-              Text(
-                widget.displayItem.label,
-                style: TextStyle(
-                  fontSize: widget.compact ? 10 : 11,
-                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: textColor,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
+            if (widget.isSection) ...[
+              const SizedBox(width: 2),
+              Icon(
+                Icons.arrow_drop_down_rounded,
+                size: 18,
+                color: widget.isSelected ? Colors.white : AppTheme.textSecondary,
               ),
             ],
-            if (widget.item.badge != null && showLabel) ...[
-              const SizedBox(height: 2),
+            if (widget.item.badge != null) ...[
+              const SizedBox(width: 4),
               _buildBadge(widget.item.badge!, small: true),
             ],
           ],
