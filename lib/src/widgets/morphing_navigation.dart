@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/nav_item.dart';
@@ -36,6 +37,10 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   static const double _itemSpacing = 4.0;
   static const double _horizontalMargin = 12.0;
   static const double _footerHeight = 80.0;
+  static const double _statusPanelHeight = 150.0;
+
+  // Scroll state for sidebar items
+  double _scrollOffset = 0.0;
 
   // TabBar layout constants
   static const double _tabBarHeight = AppTheme.tabBarHeight;
@@ -141,6 +146,27 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final height = containerRect.height - verticalPadding * 2;
 
     return Rect.fromLTWH(left, top, itemWidth, height);
+  }
+
+  /// Count total visible items including expanded section children
+  int _countVisualItems(List<NavItem> items, nav.NavigationProvider navProvider) {
+    int count = 0;
+    for (final item in items) {
+      count++;
+      if (item.hasChildren && item.children != null && navProvider.isSectionExpanded(item.id)) {
+        count += item.children!.length;
+      }
+    }
+    return count;
+  }
+
+  /// Calculate max scroll offset based on total items height vs available height
+  double _calculateMaxScrollOffset(Size screenSize, List<NavItem> items, nav.NavigationProvider navProvider, {bool hasStatus = false}) {
+    final visualItemCount = _countVisualItems(items, navProvider);
+    final totalContentHeight = 12 + visualItemCount * (_itemHeight + _itemSpacing) + 12;
+    final statusHeight = hasStatus ? _statusPanelHeight : 0.0;
+    final availableHeight = screenSize.height - _headerHeight - _footerHeight - statusHeight;
+    return (totalContentHeight - availableHeight).clamp(0.0, double.infinity);
   }
 
   /// Build the morphing container (background that transforms from sidebar to tab bar)
@@ -592,8 +618,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                     // Header divider (fades out)
                     _buildHeaderDivider(t, screenSize),
 
-                    // Navigation items
-                    ..._buildMorphingItems(
+                    // Navigation items (scrollable in sidebar mode)
+                    _buildItemsLayer(
                       screenSize,
                       t,
                       items,
@@ -624,6 +650,88 @@ class _MorphingNavigationState extends State<MorphingNavigation>
           },
         );
       },
+    );
+  }
+
+  /// Build the items layer with clipping and scroll support for sidebar mode.
+  ///
+  /// Uses ClipRect to constrain items to the sidebar area in sidebar mode,
+  /// and Transform.translate to apply scroll offset without triggering
+  /// AnimatedPositioned animations.
+  Widget _buildItemsLayer(
+    Size screenSize,
+    double t,
+    List<NavItem> items,
+    bool compact,
+    bool isBottom,
+    nav.NavigationProvider navProvider, {
+    bool hasStatus = false,
+  }) {
+    // Calculate scroll bounds and clamp offset
+    final maxScroll = _calculateMaxScrollOffset(screenSize, items, navProvider, hasStatus: hasStatus);
+    if (_scrollOffset > maxScroll) _scrollOffset = maxScroll;
+
+    final itemWidgets = _buildMorphingItems(
+      screenSize, t, items, compact, isBottom, navProvider, hasStatus: hasStatus,
+    );
+
+    // Calculate clip bounds for sidebar mode
+    final statusHeight = hasStatus ? _statusPanelHeight : 0.0;
+    final clipTop = _headerHeight;
+    final clipBottom = screenSize.height - _footerHeight - statusHeight;
+
+    final sidebarClipRect = Rect.fromLTRB(0, clipTop, _sidebarWidth, clipBottom);
+    final fullRect = Offset.zero & screenSize;
+
+    return Positioned.fill(
+      child: ClipRect(
+        clipper: _ItemsClipper(
+          t: t,
+          sidebarClipRect: sidebarClipRect,
+          fullRect: fullRect,
+        ),
+        child: Listener(
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent && t < 0.5 && maxScroll > 0) {
+              setState(() {
+                _scrollOffset = (_scrollOffset + event.scrollDelta.dy).clamp(0.0, maxScroll);
+              });
+            }
+          },
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // Background hit target for scroll handling in empty sidebar space.
+              // Positioned below items in z-order so items get tap priority.
+              if (t < 0.5 && maxScroll > 0)
+                Positioned(
+                  top: clipTop,
+                  left: 0,
+                  width: _sidebarWidth,
+                  height: clipBottom - clipTop,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onVerticalDragUpdate: (details) {
+                      setState(() {
+                        _scrollOffset = (_scrollOffset - details.delta.dy).clamp(0.0, maxScroll);
+                      });
+                    },
+                  ),
+                ),
+              // Items with scroll transform applied
+              Positioned.fill(
+                child: Transform.translate(
+                  offset: Offset(0, -_scrollOffset * (1 - t)),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: itemWidgets,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -846,6 +954,34 @@ class _ToggleButtonState extends State<_ToggleButton> {
         ),
       ),
     );
+  }
+}
+
+/// Custom clipper that constrains items to the sidebar area in sidebar mode
+/// and expands to full screen during morphing transition.
+class _ItemsClipper extends CustomClipper<Rect> {
+  final double t;
+  final Rect sidebarClipRect;
+  final Rect fullRect;
+
+  _ItemsClipper({
+    required this.t,
+    required this.sidebarClipRect,
+    required this.fullRect,
+  });
+
+  @override
+  Rect getClip(Size size) {
+    if (t <= 0.01) return sidebarClipRect;
+    if (t >= 0.99) return fullRect;
+    return Rect.lerp(sidebarClipRect, fullRect, t)!;
+  }
+
+  @override
+  bool shouldReclip(covariant _ItemsClipper oldClipper) {
+    return oldClipper.t != t ||
+        oldClipper.sidebarClipRect != sidebarClipRect ||
+        oldClipper.fullRect != fullRect;
   }
 }
 
