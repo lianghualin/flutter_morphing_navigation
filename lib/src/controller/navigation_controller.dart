@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/nav_item.dart';
 import '../models/system_status.dart';
 import '../theme/navigation_theme.dart';
+import '../widgets/navigation_header.dart';
 
 /// The mode of the navigation display
 enum MorphingNavigationMode {
@@ -55,11 +56,19 @@ class MorphingNavigationController extends ChangeNotifier {
     this.onItemSelected,
     this.onModeChanged,
     MorphingNavigationTheme? theme,
+    bool showHeader = true,
+    bool showFooter = true,
+    MorphingNavHeader? header,
+    MorphingNavFooter? footer,
   })  : _items = items,
         _selectedItemId = initialSelectedId ?? (items.isNotEmpty ? items.first.id : ''),
         _expandedSections = initialExpandedSections ?? {},
         _mode = initialMode,
-        _theme = theme ?? const MorphingNavigationTheme();
+        _theme = theme ?? const MorphingNavigationTheme(),
+        _showHeader = showHeader,
+        _showFooter = showFooter,
+        _header = header,
+        _footer = footer;
 
   final List<NavItem> _items;
   MorphingNavigationMode _mode;
@@ -69,6 +78,10 @@ class MorphingNavigationController extends ChangeNotifier {
   double _screenWidth = 1200;
   MorphingNavigationTheme _theme;
   SystemStatus? _status;
+  bool _showHeader;
+  bool _showFooter;
+  MorphingNavHeader? _header;
+  MorphingNavFooter? _footer;
 
   /// Callback invoked when an item is selected
   final OnItemSelected? onItemSelected;
@@ -86,6 +99,10 @@ class MorphingNavigationController extends ChangeNotifier {
   double get screenWidth => _screenWidth;
   MorphingNavigationTheme get theme => _theme;
   SystemStatus? get status => _status;
+  bool get showHeader => _showHeader;
+  bool get showFooter => _showFooter;
+  MorphingNavHeader? get header => _header;
+  MorphingNavFooter? get footer => _footer;
 
   /// The position of the tab bar based on screen width
   TabBarPosition get tabBarPosition {
@@ -112,6 +129,38 @@ class MorphingNavigationController extends ChangeNotifier {
   void setTheme(MorphingNavigationTheme theme) {
     if (_theme != theme) {
       _theme = theme;
+      notifyListeners();
+    }
+  }
+
+  /// Updates whether the sidebar header is shown
+  void setShowHeader(bool show) {
+    if (_showHeader != show) {
+      _showHeader = show;
+      notifyListeners();
+    }
+  }
+
+  /// Updates whether the sidebar footer is shown
+  void setShowFooter(bool show) {
+    if (_showFooter != show) {
+      _showFooter = show;
+      notifyListeners();
+    }
+  }
+
+  /// Updates the header configuration
+  void setHeader(MorphingNavHeader? header) {
+    if (_header != header) {
+      _header = header;
+      notifyListeners();
+    }
+  }
+
+  /// Updates the footer configuration
+  void setFooter(MorphingNavFooter? footer) {
+    if (_footer != footer) {
+      _footer = footer;
       notifyListeners();
     }
   }

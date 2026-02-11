@@ -261,6 +261,10 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
       onItemSelected: widget.onItemSelected,
       onModeChanged: widget.onModeChanged,
       theme: _theme,
+      showHeader: widget.showHeader,
+      showFooter: widget.showFooter,
+      header: widget.header,
+      footer: widget.footer,
     );
 
     // Create the legacy provider adapter once in initState
@@ -301,6 +305,20 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
     // Update status if changed
     if (widget.status != oldWidget.status) {
       _controller.setStatus(widget.status);
+    }
+
+    // Update header/footer visibility
+    if (widget.showHeader != oldWidget.showHeader) {
+      _controller.setShowHeader(widget.showHeader);
+    }
+    if (widget.showFooter != oldWidget.showFooter) {
+      _controller.setShowFooter(widget.showFooter);
+    }
+    if (widget.header != oldWidget.header) {
+      _controller.setHeader(widget.header);
+    }
+    if (widget.footer != oldWidget.footer) {
+      _controller.setFooter(widget.footer);
     }
   }
 
@@ -485,6 +503,18 @@ class _LegacyProviderAdapter extends NavigationProvider {
 
   @override
   void setStatus(SystemStatus? status) => _controller.setStatus(status);
+
+  @override
+  bool get showHeader => _controller.showHeader;
+
+  @override
+  bool get showFooter => _controller.showFooter;
+
+  @override
+  MorphingNavHeader? get header => _controller.header;
+
+  @override
+  MorphingNavFooter? get footer => _controller.footer;
 }
 
 /// Internal widget that handles automatic page switching based on navigation selection

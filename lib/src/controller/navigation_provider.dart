@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/nav_item.dart';
 import '../models/system_status.dart';
 import '../theme/navigation_theme.dart';
+import '../widgets/navigation_header.dart';
 
 // Re-export types from navigation_controller for backwards compatibility
 export 'navigation_controller.dart' show MorphingNavigationMode, TabBarPosition;
@@ -17,6 +18,10 @@ class NavigationProvider extends ChangeNotifier {
   bool _isUserOverride = false;
   double _screenWidth = 1200;
   SystemStatus? _status;
+  final bool _showHeader = true;
+  final bool _showFooter = true;
+  final MorphingNavHeader? _header = null;
+  final MorphingNavFooter? _footer = null;
 
   // Navigation items
   final List<NavItem> items = NavItem.defaultItems;
@@ -24,6 +29,10 @@ class NavigationProvider extends ChangeNotifier {
   // Getters
   NavigationMode get mode => _mode;
   SystemStatus? get status => _status;
+  bool get showHeader => _showHeader;
+  bool get showFooter => _showFooter;
+  MorphingNavHeader? get header => _header;
+  MorphingNavFooter? get footer => _footer;
   bool get isTabBarMode => _mode == NavigationMode.tabBar;
   bool get isSidebarMode => _mode == NavigationMode.sidebar;
   String get selectedItemId => _selectedItemId;

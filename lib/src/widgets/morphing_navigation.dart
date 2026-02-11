@@ -7,6 +7,7 @@ import '../models/system_status.dart';
 import '../controller/navigation_provider.dart' as nav;
 import '../theme/navigation_theme.dart';
 import 'morphing_nav_item.dart';
+import 'navigation_header.dart';
 import 'status_panel.dart';
 
 /// MorphingNavigation is the main orchestrator widget that handles the
@@ -31,6 +32,12 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   // Theme reference — updated each build cycle via InheritedWidget
   MorphingNavigationTheme _navTheme = const MorphingNavigationTheme();
 
+  // Header/footer visibility — updated each build from provider
+  bool _showHeader = true;
+  bool _showFooter = true;
+  MorphingNavHeader? _headerConfig;
+  MorphingNavFooter? _footerConfig;
+
   // Sidebar layout constants (read from theme)
   double get _sidebarWidth => _navTheme.sidebarWidth;
   double get _headerHeight => _navTheme.headerHeight;
@@ -39,6 +46,13 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   static const double _horizontalMargin = 12.0;
   double get _footerHeight => _navTheme.footerHeight;
   static const double _statusPanelHeight = 150.0;
+
+  // Height reserved for the toggle button row when header is hidden
+  static const double _toggleRowHeight = 44.0;
+
+  // Effective heights — when header is hidden, reserve space for the toggle row
+  double get _effectiveHeaderHeight => _showHeader ? _headerHeight : _toggleRowHeight;
+  double get _effectiveFooterHeight => _showFooter ? _footerHeight : 0;
 
   // Scroll state for sidebar items
   double _scrollOffset = 0.0;
@@ -123,7 +137,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   /// Get sidebar item rect for a given visual index
   /// The index represents the visual position in the sidebar list
   Rect _getSidebarItemRect(int visualIndex, Size screenSize, {bool isChild = false}) {
-    final top = _headerHeight + 12 + visualIndex * (_itemHeight + _itemSpacing);
+    final top = _effectiveHeaderHeight + 12 + visualIndex * (_itemHeight + _itemSpacing);
     final left = isChild ? 32.0 : _horizontalMargin;
     final width = _sidebarWidth - left - _horizontalMargin;
 
@@ -170,7 +184,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final visualItemCount = _countVisualItems(items, navProvider);
     final totalContentHeight = 12 + visualItemCount * (_itemHeight + _itemSpacing) + 12;
     final statusHeight = hasStatus ? _statusPanelHeight : 0.0;
-    final availableHeight = screenSize.height - _headerHeight - _footerHeight - statusHeight;
+    final availableHeight = screenSize.height - _effectiveHeaderHeight - _effectiveFooterHeight - statusHeight;
     return (totalContentHeight - availableHeight).clamp(0.0, double.infinity);
   }
 
@@ -264,11 +278,49 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
   /// Build the header (logo + title) that fades out during transition
   Widget _buildHeader(double t, Size screenSize, nav.NavigationProvider navProvider) {
+    if (!_showHeader) return const SizedBox.shrink();
+
     // Fade out in first 30% of transition
     final opacity = (1.0 - t * 3.33).clamp(0.0, 1.0);
     if (opacity <= 0) return const SizedBox.shrink();
 
     final width = lerpDouble(_sidebarWidth, 0, t)!;
+    final config = _headerConfig;
+
+    // Custom builder takes priority
+    if (config?.builder != null) {
+      return Positioned(
+        top: 0,
+        left: 0,
+        width: width,
+        height: _headerHeight,
+        child: Opacity(
+          opacity: opacity,
+          child: config!.builder!(context, navProvider.toggleMode),
+        ),
+      );
+    }
+
+    // Default logo
+    final logo = config?.logo ??
+        Container(
+          width: 40,
+          height: 40,
+          decoration: config?.logoDecoration ??
+              BoxDecoration(
+                gradient: _navTheme.effectivePrimaryGradient,
+                borderRadius: BorderRadius.circular(10),
+              ),
+          child: const Icon(
+            Icons.dashboard_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
+        );
+
+    final title = config != null ? config.title : 'Dashboard';
+    final String? subtitle = config != null ? config.subtitle : 'Navigation Demo';
+    final showToggle = config?.showToggleButton ?? true;
 
     return Positioned(
       top: 0,
@@ -283,21 +335,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Logo
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: _navTheme.effectivePrimaryGradient,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.dashboard_rounded,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
+              SizedBox(width: 40, height: 40, child: logo),
               const SizedBox(width: 12),
-              // Title - use Column with reduced spacing
+              // Title
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,7 +345,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'Dashboard',
+                      title,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -313,19 +353,22 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                         height: 1.2,
                       ),
                     ),
-                    Text(
-                      'Navigation Demo',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: _navTheme.textSecondaryColor,
-                        height: 1.2,
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _navTheme.textSecondaryColor,
+                          height: 1.2,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
+              if (config?.trailing != null) config!.trailing!,
               // Toggle button in header
-              _HeaderToggleButton(onTap: navProvider.toggleMode),
+              if (showToggle)
+                _HeaderToggleButton(onTap: navProvider.toggleMode),
             ],
           ),
         ),
@@ -335,6 +378,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
   /// Build the divider below header
   Widget _buildHeaderDivider(double t, Size screenSize) {
+    if (!_showHeader) return const SizedBox.shrink();
+
     final opacity = (1.0 - t * 3.33).clamp(0.0, 1.0);
     if (opacity <= 0) return const SizedBox.shrink();
 
@@ -354,11 +399,98 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
   /// Build the footer (user info) that fades out during transition
   Widget _buildFooter(double t, Size screenSize) {
+    if (!_showFooter) return const SizedBox.shrink();
+
     // Fade out in first 30% of transition
     final opacity = (1.0 - t * 3.33).clamp(0.0, 1.0);
     if (opacity <= 0) return const SizedBox.shrink();
 
     final width = lerpDouble(_sidebarWidth, 0, t)!;
+    final config = _footerConfig;
+
+    // Custom builder takes priority
+    if (config?.builder != null) {
+      return Positioned(
+        bottom: 0,
+        left: 0,
+        width: width,
+        height: _footerHeight,
+        child: Opacity(
+          opacity: opacity,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: _navTheme.borderColor, width: 1),
+              ),
+            ),
+            child: config!.builder!(context),
+          ),
+        ),
+      );
+    }
+
+    // Determine avatar widget
+    final avatarText = config?.avatarText ?? 'JD';
+    final avatarWidget = config?.avatar ??
+        Center(
+          child: Text(
+            avatarText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+        );
+
+    final String? title = config != null ? config.title : 'John Doe';
+    final String? subtitle = config != null ? config.subtitle : 'john@example.com';
+
+    final footerContent = Row(
+      children: [
+        // Avatar
+        Container(
+          width: 40,
+          height: 40,
+          decoration: config?.avatarDecoration ??
+              BoxDecoration(
+                gradient: _navTheme.effectivePrimaryGradient,
+                borderRadius: BorderRadius.circular(20),
+              ),
+          child: avatarWidget,
+        ),
+        const SizedBox(width: 12),
+        // User info
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (title != null)
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _navTheme.textPrimaryColor,
+                  ),
+                ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _navTheme.textSecondaryColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
+        if (config?.trailing != null) config!.trailing!,
+      ],
+    );
 
     return Positioned(
       bottom: 0,
@@ -367,65 +499,19 @@ class _MorphingNavigationState extends State<MorphingNavigation>
       height: _footerHeight,
       child: Opacity(
         opacity: opacity,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: _navTheme.borderColor,
-                width: 1,
+        child: GestureDetector(
+          onTap: config?.onTap,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: _navTheme.borderColor,
+                  width: 1,
+                ),
               ),
             ),
-          ),
-          child: Row(
-            children: [
-              // Avatar
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: _navTheme.effectivePrimaryGradient,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(
-                  child: Text(
-                    'JD',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // User info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'John Doe',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _navTheme.textPrimaryColor,
-                      ),
-                    ),
-                    Text(
-                      'john@example.com',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _navTheme.textSecondaryColor,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            child: footerContent,
           ),
         ),
       ),
@@ -443,7 +529,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final width = lerpDouble(_sidebarWidth, 0, t)!;
 
     return Positioned(
-      bottom: _footerHeight,
+      bottom: _effectiveFooterHeight,
       left: 0,
       width: width,
       child: SidebarStatusPanel(
@@ -497,18 +583,22 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     nav.NavigationProvider navProvider, {
     bool hasStatus = false,
   }) {
-    // In sidebar mode (t=0): hidden (header has its own toggle)
+    // In sidebar mode (t=0): hidden when header is shown (header has its own toggle)
+    // When header hidden: always visible, positioned at top-right of sidebar
     // In tabbar mode (t=1): show at end of items
     // During transition: appears and moves to tabbar position
 
-    // Only show this toggle when t > 0.1 (after header starts fading)
-    if (t <= 0.1) return const SizedBox.shrink();
+    // When header is shown, only show this toggle after header starts fading
+    final showThreshold = _showHeader ? 0.1 : 0.0;
+    if (t <= showThreshold && _showHeader) return const SizedBox.shrink();
 
-    // Sidebar start position matches header toggle position
-    // Header has padding: all(20), and toggle is 32x32
+    // Sidebar start position — centered in header area or toggle row
+    final sidebarToggleTop = _showHeader
+        ? 20.0 // aligned with header padding
+        : (_toggleRowHeight - 32) / 2; // centered in reserved toggle row
     final sidebarRect = Rect.fromLTWH(
-      _sidebarWidth - 20 - 32, // header right padding - button width
-      20, // header top padding
+      _sidebarWidth - 20 - 32, // right padding - button width
+      sidebarToggleTop,
       32,
       32,
     );
@@ -526,16 +616,20 @@ class _MorphingNavigationState extends State<MorphingNavigation>
       tabBarRect.height - verticalPadding * 2,
     );
 
-    // Remap t from [0.1, 1.0] to [0.0, 1.0] for smooth interpolation
-    final remappedT = ((t - 0.1) / 0.9).clamp(0.0, 1.0);
+    // Remap t for smooth interpolation
+    final remapStart = _showHeader ? 0.1 : 0.0;
+    final remapRange = 1.0 - remapStart;
+    final remappedT = ((t - remapStart) / remapRange).clamp(0.0, 1.0);
     final rect = Rect.lerp(sidebarRect, tabBarToggleRect, remappedT)!;
 
     // Icon transitions - sidebar icon fades out, then tabbar icon fades in
     final sidebarIconOpacity = (1.0 - remappedT * 2).clamp(0.0, 1.0);
     final tabBarIconOpacity = ((remappedT - 0.5) * 2).clamp(0.0, 1.0);
 
-    // Overall opacity fades in as header fades out
-    final overallOpacity = ((t - 0.1) * 5).clamp(0.0, 1.0); // fully visible by t=0.3
+    // Overall opacity
+    final overallOpacity = _showHeader
+        ? ((t - 0.1) * 5).clamp(0.0, 1.0) // fades in as header fades out
+        : 1.0; // always visible when no header
 
     return Positioned(
       left: rect.left,
@@ -575,6 +669,12 @@ class _MorphingNavigationState extends State<MorphingNavigation>
       builder: (context, navProvider, _) {
         // Update theme reference
         _navTheme = MorphingNavigationThemeProvider.of(context);
+
+        // Update header/footer config from provider
+        _showHeader = navProvider.showHeader;
+        _showFooter = navProvider.showFooter;
+        _headerConfig = navProvider.header;
+        _footerConfig = navProvider.footer;
 
         // Animate when mode changes
         if (_previousMode != navProvider.mode) {
@@ -671,8 +771,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
     // Calculate clip bounds for sidebar mode
     final statusHeight = hasStatus ? _statusPanelHeight : 0.0;
-    final clipTop = _headerHeight;
-    final clipBottom = screenSize.height - _footerHeight - statusHeight;
+    final clipTop = _effectiveHeaderHeight;
+    final clipBottom = screenSize.height - _effectiveFooterHeight - statusHeight;
 
     final sidebarClipRect = Rect.fromLTRB(0, clipTop, _sidebarWidth, clipBottom);
     final fullRect = Offset.zero & screenSize;
