@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../models/nav_item.dart';
 import '../models/system_status.dart';
 import '../controller/navigation_provider.dart' as nav;
-import '../theme/app_theme.dart';
 import '../theme/navigation_theme.dart';
 import 'morphing_nav_item.dart';
 import 'status_panel.dart';
@@ -29,21 +28,23 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   late AnimationController _controller;
   nav.NavigationMode? _previousMode;
 
+  // Theme reference — updated each build cycle via InheritedWidget
+  MorphingNavigationTheme _navTheme = const MorphingNavigationTheme();
 
-  // Sidebar layout constants
-  static const double _sidebarWidth = AppTheme.sidebarWidth;
-  static const double _headerHeight = 80.0; // padding(20) * 2 + content(40)
-  static const double _itemHeight = 46.0;
-  static const double _itemSpacing = 4.0;
+  // Sidebar layout constants (read from theme)
+  double get _sidebarWidth => _navTheme.sidebarWidth;
+  double get _headerHeight => _navTheme.headerHeight;
+  double get _itemHeight => _navTheme.itemHeight;
+  double get _itemSpacing => _navTheme.itemSpacing;
   static const double _horizontalMargin = 12.0;
-  static const double _footerHeight = 80.0;
+  double get _footerHeight => _navTheme.footerHeight;
   static const double _statusPanelHeight = 150.0;
 
   // Scroll state for sidebar items
   double _scrollOffset = 0.0;
 
-  // TabBar layout constants
-  static const double _tabBarHeight = AppTheme.tabBarHeight;
+  // TabBar layout constants (read from theme)
+  double get _tabBarHeight => _navTheme.tabBarHeight;
   static const double _tabBarTopMargin = 16.0;
   static const double _tabBarBottomMargin = 24.0;
 
@@ -52,13 +53,17 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: AppTheme.modeTransitionDuration,
+      duration: const Duration(milliseconds: 400),
     );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Read theme from inherited widget
+    _navTheme = MorphingNavigationThemeProvider.of(context);
+    _controller.duration = _navTheme.modeTransitionDuration;
+
     // Initialize controller value on first build
     if (_previousMode == null) {
       final navProvider = context.read<nav.NavigationProvider>();
@@ -183,38 +188,24 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
     final rect = Rect.lerp(sidebarRect, tabBarRect, t)!;
     final borderRadius = lerpDouble(16, 32, t)!;
-    final blur = lerpDouble(0, AppTheme.glassBlur, t)!;
+    final blur = lerpDouble(0, _navTheme.glassBlurRadius, t)!;
 
-    // Background color transitions from solid white to glassmorphism
+    // Background color transitions from sidebar to glassmorphism
     final backgroundColor = Color.lerp(
-      Colors.white,
-      AppTheme.glassBackground,
+      _navTheme.sidebarBackgroundColor,
+      _navTheme.glassBackgroundColor,
       t,
     )!;
 
     // Border color transitions
     final borderColor = Color.lerp(
-      AppTheme.sidebarBorder,
-      AppTheme.glassBorder,
+      _navTheme.borderColor,
+      _navTheme.glassBorderColor,
       t,
     )!;
 
     // Get theme for shadows
-    final theme = MorphingNavigationThemeProvider.maybeOf(context);
-    final tabBarShadow = theme?.effectiveTabBarShadow ?? [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.15),
-        blurRadius: 40,
-        spreadRadius: 0,
-        offset: const Offset(0, 8),
-      ),
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.08),
-        blurRadius: 12,
-        spreadRadius: 0,
-        offset: const Offset(0, 2),
-      ),
-    ];
+    final tabBarShadow = _navTheme.effectiveTabBarShadow;
 
     // Interpolate shadow opacity based on t
     final shadowMultiplier = t.clamp(0.0, 1.0);
@@ -245,7 +236,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
               ? Border(
                   right: BorderSide(
                     color: Color.lerp(
-                      AppTheme.sidebarBorder,
+                      _navTheme.borderColor,
                       Colors.transparent,
                       t * 2,
                     )!,
@@ -296,7 +287,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
+                  gradient: _navTheme.effectivePrimaryGradient,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -312,13 +303,13 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Text(
                       'Dashboard',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: _navTheme.textPrimaryColor,
                         height: 1.2,
                       ),
                     ),
@@ -326,7 +317,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                       'Navigation Demo',
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppTheme.textSecondary,
+                        color: _navTheme.textSecondaryColor,
                         height: 1.2,
                       ),
                     ),
@@ -355,7 +346,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
         opacity: opacity,
         child: Container(
           height: 1,
-          color: AppTheme.sidebarBorder,
+          color: _navTheme.borderColor,
         ),
       ),
     );
@@ -381,7 +372,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
           decoration: BoxDecoration(
             border: Border(
               top: BorderSide(
-                color: AppTheme.sidebarBorder,
+                color: _navTheme.borderColor,
                 width: 1,
               ),
             ),
@@ -393,7 +384,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
+                  gradient: _navTheme.effectivePrimaryGradient,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Center(
@@ -414,20 +405,20 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Text(
                       'John Doe',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
+                        color: _navTheme.textPrimaryColor,
                       ),
                     ),
                     Text(
                       'john@example.com',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textSecondary,
+                        color: _navTheme.textSecondaryColor,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -582,6 +573,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   Widget build(BuildContext context) {
     return Consumer<nav.NavigationProvider>(
       builder: (context, navProvider, _) {
+        // Update theme reference
+        _navTheme = MorphingNavigationThemeProvider.of(context);
+
         // Animate when mode changes
         if (_previousMode != navProvider.mode) {
           if (navProvider.isTabBarMode) {
@@ -604,7 +598,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
             return AnimatedBuilder(
               animation: _controller,
               builder: (context, _) {
-                final t = AppTheme.modeTransitionCurve.transform(_controller.value);
+                final t = _navTheme.modeTransitionCurve.transform(_controller.value);
 
                 return Stack(
                   clipBehavior: Clip.none,
@@ -898,6 +892,7 @@ class _ToggleButtonState extends State<_ToggleButton> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = MorphingNavigationThemeProvider.of(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -920,7 +915,7 @@ class _ToggleButtonState extends State<_ToggleButton> {
                     child: Icon(
                       widget.sidebarIcon,
                       size: 20,
-                      color: AppTheme.textSecondary,
+                      color: theme.textSecondaryColor,
                     ),
                   ),
                 // Tab bar icon (expand)
@@ -933,7 +928,7 @@ class _ToggleButtonState extends State<_ToggleButton> {
                         Icon(
                           widget.tabBarIcon,
                           size: widget.compact ? 20 : 24,
-                          color: AppTheme.textSecondary,
+                          color: theme.textSecondaryColor,
                         ),
                         if (widget.t > 0.7) ...[
                           const SizedBox(height: 4),
@@ -944,7 +939,7 @@ class _ToggleButtonState extends State<_ToggleButton> {
                               style: TextStyle(
                                 fontSize: widget.compact ? 10 : 11,
                                 fontWeight: FontWeight.w500,
-                                color: AppTheme.textSecondary,
+                                color: theme.textSecondaryColor,
                               ),
                             ),
                           ),
@@ -1004,25 +999,26 @@ class _HeaderToggleButtonState extends State<_HeaderToggleButton> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = MorphingNavigationThemeProvider.of(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
-          duration: AppTheme.hoverDuration,
+          duration: theme.hoverDuration,
           width: 32,
           height: 32,
           decoration: BoxDecoration(
             color: _isHovered
-                ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                ? theme.primaryColor.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.menu_open_rounded,
             size: 20,
-            color: AppTheme.textSecondary,
+            color: theme.textSecondaryColor,
           ),
         ),
       ),

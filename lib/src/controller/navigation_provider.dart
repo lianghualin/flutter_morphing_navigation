@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/nav_item.dart';
 import '../models/system_status.dart';
-import '../theme/app_theme.dart';
+import '../theme/navigation_theme.dart';
 
 // Re-export types from navigation_controller for backwards compatibility
 export 'navigation_controller.dart' show MorphingNavigationMode, TabBarPosition;
@@ -32,19 +32,19 @@ class NavigationProvider extends ChangeNotifier {
 
   // Computed properties
   TabBarPosition get tabBarPosition {
-    if (_screenWidth < AppTheme.breakpointMedium) {
+    if (_screenWidth < MorphingNavigationTheme.light.breakpointMedium) {
       return TabBarPosition.bottom;
     }
     return TabBarPosition.top;
   }
 
   bool get shouldAutoSwitchToTabBar {
-    return _screenWidth < AppTheme.breakpointLarge;
+    return _screenWidth < MorphingNavigationTheme.light.breakpointLarge;
   }
 
   double get contentPadding {
     if (isSidebarMode) {
-      return AppTheme.sidebarWidth;
+      return MorphingNavigationTheme.light.sidebarWidth;
     }
     return 0;
   }
@@ -72,10 +72,10 @@ class NavigationProvider extends ChangeNotifier {
 
     // Only auto-switch if user hasn't manually overridden
     if (!_isUserOverride) {
-      if (width < AppTheme.breakpointLarge && _mode == NavigationMode.sidebar) {
+      if (width < MorphingNavigationTheme.light.breakpointLarge && _mode == NavigationMode.sidebar) {
         _mode = NavigationMode.tabBar;
         notifyListeners();
-      } else if (width >= AppTheme.breakpointLarge &&
+      } else if (width >= MorphingNavigationTheme.light.breakpointLarge &&
           _mode == NavigationMode.tabBar) {
         _mode = NavigationMode.sidebar;
         notifyListeners();

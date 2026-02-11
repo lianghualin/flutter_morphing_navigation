@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../controller/navigation_provider.dart' as nav;
-import '../theme/app_theme.dart';
+import '../theme/navigation_theme.dart';
 import 'morphing_navigation.dart';
 
 class AdaptiveNavigation extends StatefulWidget {
@@ -29,14 +29,14 @@ class _AdaptiveNavigationState extends State<AdaptiveNavigation>
     super.initState();
     _paddingController = AnimationController(
       vsync: this,
-      duration: AppTheme.modeTransitionDuration,
+      duration: const MorphingNavigationTheme().modeTransitionDuration,
     );
     _paddingAnimation = Tween<double>(
-      begin: AppTheme.sidebarWidth,
+      begin: const MorphingNavigationTheme().sidebarWidth,
       end: 0,
     ).animate(CurvedAnimation(
       parent: _paddingController,
-      curve: AppTheme.modeTransitionCurve,
+      curve: const MorphingNavigationTheme().modeTransitionCurve,
     ));
   }
 

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/nav_item.dart';
 import '../controller/navigation_provider.dart' as nav;
-import '../theme/app_theme.dart';
+import '../theme/navigation_theme.dart';
 
 /// MorphingNavItem represents a single navigation item that morphs between
 /// sidebar and tab bar layouts.
@@ -56,6 +56,9 @@ class _MorphingNavItemState extends State<MorphingNavItem>
   bool _isHovered = false;
   final GlobalKey _buttonKey = GlobalKey();
 
+  // Theme reference — updated each build cycle
+  MorphingNavigationTheme _theme = const MorphingNavigationTheme();
+
   // Animation for child items expanding/collapsing
   late AnimationController _expandController;
   late Animation<double> _expandAnimation;
@@ -66,11 +69,11 @@ class _MorphingNavItemState extends State<MorphingNavItem>
     super.initState();
     _expandController = AnimationController(
       vsync: this,
-      duration: AppTheme.accordionDuration,
+      duration: const Duration(milliseconds: 300),
     );
     _expandAnimation = CurvedAnimation(
       parent: _expandController,
-      curve: AppTheme.accordionCurve,
+      curve: Curves.easeInOut,
     );
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.3),
@@ -128,6 +131,8 @@ class _MorphingNavItemState extends State<MorphingNavItem>
 
   @override
   Widget build(BuildContext context) {
+    _theme = MorphingNavigationThemeProvider.of(context);
+
     // Interpolate position
     final rect = Rect.lerp(widget.sidebarRect, widget.tabBarRect, widget.t)!;
 
@@ -175,11 +180,11 @@ class _MorphingNavItemState extends State<MorphingNavItem>
     // Icon color transitions
     final iconColor = widget.isSelected
         ? Colors.white
-        : (widget.displayItem.iconColor ?? AppTheme.textSecondary);
+        : (widget.displayItem.iconColor ?? _theme.textSecondaryColor);
 
     // Text color transitions
-    final textColor = widget.isSelected ? Colors.white : AppTheme.textPrimary;
-    final tabBarTextColor = widget.isSelected ? Colors.white : AppTheme.textSecondary;
+    final textColor = widget.isSelected ? Colors.white : _theme.textPrimaryColor;
+    final tabBarTextColor = widget.isSelected ? Colors.white : _theme.textSecondaryColor;
 
     // Positioning strategy:
     // - During morphing (0 < t < 1): Use Positioned - position comes from Rect.lerp
@@ -202,12 +207,12 @@ class _MorphingNavItemState extends State<MorphingNavItem>
         },
         child: Container(
           decoration: BoxDecoration(
-            gradient: widget.isSelected ? AppTheme.activeItemGradient : null,
+            gradient: widget.isSelected ? _theme.effectiveSelectedItemGradient : null,
             color: widget.isSelected
                 ? null
                 : (_isHovered
                     ? (widget.t < 0.5
-                        ? AppTheme.sidebarItemHover
+                        ? _theme.itemHoverColor
                         : Colors.black.withValues(alpha: 0.05))
                     : Colors.transparent),
             borderRadius: BorderRadius.circular(
@@ -249,8 +254,8 @@ class _MorphingNavItemState extends State<MorphingNavItem>
       );
     } else {
       return AnimatedPositioned(
-        duration: AppTheme.accordionDuration,
-        curve: AppTheme.accordionCurve,
+        duration: _theme.accordionDuration,
+        curve: _theme.accordionCurve,
         left: rect.left,
         top: rect.top,
         width: rect.width,
@@ -264,8 +269,8 @@ class _MorphingNavItemState extends State<MorphingNavItem>
   Widget _buildSidebarContent() {
     final iconColor = widget.isSelected
         ? Colors.white
-        : (widget.item.iconColor ?? AppTheme.textSecondary);
-    final textColor = widget.isSelected ? Colors.white : AppTheme.textPrimary;
+        : (widget.item.iconColor ?? _theme.textSecondaryColor);
+    final textColor = widget.isSelected ? Colors.white : _theme.textPrimaryColor;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -275,10 +280,10 @@ class _MorphingNavItemState extends State<MorphingNavItem>
         onTap: widget.onTap,
         child: Container(
           decoration: BoxDecoration(
-            gradient: widget.isSelected ? AppTheme.activeItemGradient : null,
+            gradient: widget.isSelected ? _theme.effectiveSelectedItemGradient : null,
             color: widget.isSelected
                 ? null
-                : (_isHovered ? AppTheme.sidebarItemHover : Colors.transparent),
+                : (_isHovered ? _theme.itemHoverColor : Colors.transparent),
             borderRadius: BorderRadius.circular(10),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -340,12 +345,12 @@ class _MorphingNavItemState extends State<MorphingNavItem>
                 final expanded = provider.isSectionExpanded(widget.item.id);
                 return AnimatedRotation(
                   turns: expanded ? 0.25 : 0,
-                  duration: AppTheme.accordionDuration,
-                  curve: AppTheme.accordionCurve,
+                  duration: _theme.accordionDuration,
+                  curve: _theme.accordionCurve,
                   child: Icon(
                     Icons.chevron_right_rounded,
                     size: 20,
-                    color: widget.isSelected ? Colors.white : AppTheme.textSecondary,
+                    color: widget.isSelected ? Colors.white : _theme.textSecondaryColor,
                   ),
                 );
               },
@@ -376,7 +381,7 @@ class _MorphingNavItemState extends State<MorphingNavItem>
               Icon(
                 Icons.arrow_drop_down_rounded,
                 size: 18,
-                color: widget.isSelected ? Colors.white : AppTheme.textSecondary,
+                color: widget.isSelected ? Colors.white : _theme.textSecondaryColor,
               ),
             ],
             if (widget.item.badge != null) ...[
@@ -399,7 +404,7 @@ class _MorphingNavItemState extends State<MorphingNavItem>
       decoration: BoxDecoration(
         color: widget.isSelected
             ? Colors.white.withValues(alpha: 0.2)
-            : AppTheme.primaryRed,
+            : _theme.errorColor,
         borderRadius: BorderRadius.circular(small ? 8 : 10),
       ),
       child: Text(
@@ -432,6 +437,7 @@ class _MorphingNavItemState extends State<MorphingNavItem>
         isBottom: isBottom,
         children: widget.item.children!,
         navProvider: widget.navProvider,
+        theme: _theme,
       ),
     );
   }
@@ -444,6 +450,7 @@ class _AnimatedDropdownRoute extends PopupRoute<String> {
   final bool isBottom;
   final List<NavItem> children;
   final nav.NavigationProvider navProvider;
+  final MorphingNavigationTheme theme;
 
   _AnimatedDropdownRoute({
     required this.buttonOffset,
@@ -451,6 +458,7 @@ class _AnimatedDropdownRoute extends PopupRoute<String> {
     required this.isBottom,
     required this.children,
     required this.navProvider,
+    required this.theme,
   });
 
   @override
@@ -474,10 +482,12 @@ class _AnimatedDropdownRoute extends PopupRoute<String> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    // Wrap with Provider so Consumer inside dropdown can find it
+    // Wrap with Provider and Theme so dropdown can find them
     return ChangeNotifierProvider<nav.NavigationProvider>.value(
       value: navProvider,
-      child: _AnimatedDropdown(
+      child: MorphingNavigationThemeProvider(
+        theme: theme,
+        child: _AnimatedDropdown(
         animation: animation,
         buttonOffset: buttonOffset,
         buttonSize: buttonSize,
@@ -485,6 +495,7 @@ class _AnimatedDropdownRoute extends PopupRoute<String> {
         children: children,
         navProvider: navProvider,
         onDismiss: () => Navigator.of(context).pop(),
+      ),
       ),
     );
   }
@@ -567,11 +578,12 @@ class _AnimatedDropdown extends StatelessWidget {
                   color: Colors.transparent,
                   child: Consumer<nav.NavigationProvider>(
                     builder: (context, provider, _) {
+                      final dropdownTheme = MorphingNavigationThemeProvider.of(context);
                       return Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: dropdownTheme.sidebarBackgroundColor,
                           borderRadius: BorderRadius.circular(16),
-                          boxShadow: AppTheme.dropdownShadow,
+                          boxShadow: dropdownTheme.effectiveDropdownShadow,
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: IntrinsicWidth(
@@ -675,12 +687,15 @@ class _AnimatedDropdownItemState extends State<_AnimatedDropdownItem> {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: AppTheme.hoverDuration,
+          child: Builder(
+          builder: (context) {
+            final itemTheme = MorphingNavigationThemeProvider.of(context);
+            return AnimatedContainer(
+            duration: itemTheme.hoverDuration,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: widget.isSelected
-                  ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                  ? itemTheme.itemSelectedColor.withValues(alpha: 0.1)
                   : (_isHovered ? Colors.grey.withValues(alpha: 0.1) : Colors.transparent),
               borderRadius: BorderRadius.circular(8),
             ),
@@ -691,8 +706,8 @@ class _AnimatedDropdownItemState extends State<_AnimatedDropdownItem> {
                   widget.item.icon,
                   size: 20,
                   color: widget.isSelected
-                      ? AppTheme.primaryBlue
-                      : (widget.item.iconColor ?? AppTheme.textSecondary),
+                      ? itemTheme.itemSelectedColor
+                      : (widget.item.iconColor ?? itemTheme.textSecondaryColor),
                 ),
                 const SizedBox(width: 12),
                 Text(
@@ -701,13 +716,15 @@ class _AnimatedDropdownItemState extends State<_AnimatedDropdownItem> {
                     fontSize: 14,
                     fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: widget.isSelected
-                        ? AppTheme.primaryBlue
-                        : AppTheme.textPrimary,
+                        ? itemTheme.itemSelectedColor
+                        : itemTheme.textPrimaryColor,
                   ),
                 ),
               ],
             ),
-          ),
+          );
+          },
+        ),
         ),
       ),
     );

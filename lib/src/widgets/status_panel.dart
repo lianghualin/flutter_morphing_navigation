@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/system_status.dart';
-import '../theme/app_theme.dart';
+import '../theme/navigation_theme.dart';
 
 /// Status panel for sidebar mode showing linear progress bars.
 ///
@@ -21,15 +21,17 @@ class SidebarStatusPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (opacity <= 0) return const SizedBox.shrink();
 
+    final theme = MorphingNavigationThemeProvider.of(context);
+
     return Opacity(
       opacity: opacity,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.sidebarBackground,
+          color: theme.sidebarBackgroundColor,
           border: Border(
             top: BorderSide(
-              color: AppTheme.sidebarBorder,
+              color: theme.borderColor,
               width: 1,
             ),
           ),
@@ -39,21 +41,21 @@ class SidebarStatusPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Progress bars section
-            _buildProgressBar('CPU', status.cpuUsage, AppTheme.primaryBlue),
+            _buildProgressBar('CPU', status.cpuUsage, theme.primaryColor, theme),
             const SizedBox(height: 12),
-            _buildProgressBar('MEM', status.memoryUsage, AppTheme.primaryGreen),
+            _buildProgressBar('MEM', status.memoryUsage, theme.successColor, theme),
             const SizedBox(height: 12),
-            _buildProgressBar('DISK', status.diskUsage, AppTheme.primaryOrange),
+            _buildProgressBar('DISK', status.diskUsage, theme.warningColor, theme),
             const SizedBox(height: 16),
             // Bottom info row
-            _buildInfoRow(),
+            _buildInfoRow(theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildProgressBar(String label, double value, Color color) {
+  Widget _buildProgressBar(String label, double value, Color color, MorphingNavigationTheme theme) {
     return Row(
       children: [
         SizedBox(
@@ -63,7 +65,7 @@ class SidebarStatusPanel extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textSecondary,
+              color: theme.textSecondaryColor,
               letterSpacing: 0.5,
             ),
           ),
@@ -73,7 +75,7 @@ class SidebarStatusPanel extends StatelessWidget {
           child: Container(
             height: 6,
             decoration: BoxDecoration(
-              color: AppTheme.sidebarBorder,
+              color: theme.borderColor,
               borderRadius: BorderRadius.circular(3),
             ),
             child: FractionallySizedBox(
@@ -97,7 +99,7 @@ class SidebarStatusPanel extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: AppTheme.textPrimary,
+              color: theme.textPrimaryColor,
             ),
           ),
         ),
@@ -105,14 +107,14 @@ class SidebarStatusPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow() {
+  Widget _buildInfoRow(MorphingNavigationTheme theme) {
     return Row(
       children: [
         // Time
         Icon(
           Icons.access_time_rounded,
           size: 14,
-          color: AppTheme.textSecondary,
+          color: theme.textSecondaryColor,
         ),
         const SizedBox(width: 4),
         Text(
@@ -120,7 +122,7 @@ class SidebarStatusPanel extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: AppTheme.textPrimary,
+            color: theme.textPrimaryColor,
           ),
         ),
         const SizedBox(width: 16),
@@ -131,8 +133,8 @@ class SidebarStatusPanel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: status.warningCount > 0
-                  ? AppTheme.primaryOrange.withValues(alpha: 0.1)
-                  : AppTheme.sidebarBorder,
+                  ? theme.warningColor.withValues(alpha: 0.1)
+                  : theme.borderColor,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -142,8 +144,8 @@ class SidebarStatusPanel extends StatelessWidget {
                   Icons.warning_amber_rounded,
                   size: 14,
                   color: status.warningCount > 0
-                      ? AppTheme.primaryOrange
-                      : AppTheme.textSecondary,
+                      ? theme.warningColor
+                      : theme.textSecondaryColor,
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -152,8 +154,8 @@ class SidebarStatusPanel extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: status.warningCount > 0
-                        ? AppTheme.primaryOrange
-                        : AppTheme.textSecondary,
+                        ? theme.warningColor
+                        : theme.textSecondaryColor,
                   ),
                 ),
               ],
@@ -183,6 +185,8 @@ class TabBarStatusIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     if (opacity <= 0) return const SizedBox.shrink();
 
+    final theme = MorphingNavigationThemeProvider.of(context);
+
     return Opacity(
       opacity: opacity,
       child: Container(
@@ -194,7 +198,7 @@ class TabBarStatusIndicator extends StatelessWidget {
             Container(
               width: 1,
               height: 32,
-              color: AppTheme.sidebarBorder,
+              color: theme.borderColor,
             ),
             const SizedBox(width: 12),
             // Time
@@ -203,7 +207,7 @@ class TabBarStatusIndicator extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: theme.textPrimaryColor,
               ),
             ),
             const SizedBox(width: 12),
@@ -214,7 +218,7 @@ class TabBarStatusIndicator extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: status.warningCount > 0
-                      ? AppTheme.primaryOrange.withValues(alpha: 0.15)
+                      ? theme.warningColor.withValues(alpha: 0.15)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -225,8 +229,8 @@ class TabBarStatusIndicator extends StatelessWidget {
                       Icons.warning_amber_rounded,
                       size: 12,
                       color: status.warningCount > 0
-                          ? AppTheme.primaryOrange
-                          : AppTheme.textSecondary,
+                          ? theme.warningColor
+                          : theme.textSecondaryColor,
                     ),
                     const SizedBox(width: 2),
                     Text(
@@ -235,8 +239,8 @@ class TabBarStatusIndicator extends StatelessWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: status.warningCount > 0
-                            ? AppTheme.primaryOrange
-                            : AppTheme.textSecondary,
+                            ? theme.warningColor
+                            : theme.textSecondaryColor,
                       ),
                     ),
                   ],
@@ -247,27 +251,37 @@ class TabBarStatusIndicator extends StatelessWidget {
             // Circular progress indicators with labels and tooltips
             _LabeledCircularIndicator(
               value: status.cpuUsage,
-              color: AppTheme.primaryBlue,
+              color: theme.primaryColor,
+              backgroundColor: theme.borderColor,
+              tooltipBackgroundColor: theme.textPrimaryColor,
               label: 'C',
               tooltip: 'CPU: ${status.cpuPercentage}',
             ),
             const SizedBox(width: 6),
             _LabeledCircularIndicator(
               value: status.memoryUsage,
-              color: AppTheme.primaryGreen,
+              color: theme.successColor,
+              backgroundColor: theme.borderColor,
+              tooltipBackgroundColor: theme.textPrimaryColor,
               label: 'M',
               tooltip: 'Memory: ${status.memoryPercentage}',
             ),
             const SizedBox(width: 6),
             _LabeledCircularIndicator(
               value: status.diskUsage,
-              color: AppTheme.primaryOrange,
+              color: theme.warningColor,
+              backgroundColor: theme.borderColor,
+              tooltipBackgroundColor: theme.textPrimaryColor,
               label: 'D',
               tooltip: 'Disk: ${status.diskPercentage}',
             ),
             const SizedBox(width: 8),
             // User avatar
-            _UserAvatar(userName: status.userName),
+            _UserAvatar(
+              userName: status.userName,
+              gradient: theme.effectivePrimaryGradient,
+              tooltipBackgroundColor: theme.textPrimaryColor,
+            ),
           ],
         ),
       ),
@@ -279,6 +293,8 @@ class TabBarStatusIndicator extends StatelessWidget {
 class _LabeledCircularIndicator extends StatelessWidget {
   final double value;
   final Color color;
+  final Color backgroundColor;
+  final Color tooltipBackgroundColor;
   final String label;
   final String tooltip;
   final double size;
@@ -286,6 +302,8 @@ class _LabeledCircularIndicator extends StatelessWidget {
   const _LabeledCircularIndicator({
     required this.value,
     required this.color,
+    required this.backgroundColor,
+    required this.tooltipBackgroundColor,
     required this.label,
     required this.tooltip,
     this.size = 26,
@@ -297,7 +315,7 @@ class _LabeledCircularIndicator extends StatelessWidget {
       message: tooltip,
       preferBelow: false,
       decoration: BoxDecoration(
-        color: AppTheme.textPrimary.withValues(alpha: 0.9),
+        color: tooltipBackgroundColor.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(6),
       ),
       textStyle: const TextStyle(
@@ -317,7 +335,7 @@ class _LabeledCircularIndicator extends StatelessWidget {
               painter: _CircularProgressPainter(
                 value: value.clamp(0.0, 1.0),
                 color: color,
-                backgroundColor: AppTheme.sidebarBorder,
+                backgroundColor: backgroundColor,
                 strokeWidth: 3,
               ),
             ),
@@ -340,10 +358,14 @@ class _LabeledCircularIndicator extends StatelessWidget {
 /// User avatar for tab bar status
 class _UserAvatar extends StatelessWidget {
   final String userName;
+  final Gradient gradient;
+  final Color tooltipBackgroundColor;
   final double size;
 
   const _UserAvatar({
     required this.userName,
+    required this.gradient,
+    required this.tooltipBackgroundColor,
     this.size = 26,
   });
 
@@ -364,7 +386,7 @@ class _UserAvatar extends StatelessWidget {
       message: userName,
       preferBelow: false,
       decoration: BoxDecoration(
-        color: AppTheme.textPrimary.withValues(alpha: 0.9),
+        color: tooltipBackgroundColor.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(6),
       ),
       textStyle: const TextStyle(
@@ -376,7 +398,7 @@ class _UserAvatar extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          gradient: AppTheme.primaryGradient,
+          gradient: gradient,
           borderRadius: BorderRadius.circular(size / 2),
         ),
         child: Center(
