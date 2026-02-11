@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:morphing_navigation/morphing_navigation.dart';
+import 'package:morphing_navigation/morph_nav.dart';
 
 void main() {
   runApp(const PlaygroundApp());
