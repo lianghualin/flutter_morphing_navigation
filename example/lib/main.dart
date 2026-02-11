@@ -109,7 +109,7 @@ class _PlaygroundRootState extends State<_PlaygroundRoot> {
           label: 'Transitions',
           icon: Icons.animation_rounded,
           iconColor: Color(0xFFFF9500),
-          badge: '4',
+          badge: '14',
         ),
         NavItem(
           id: 'controls',
@@ -393,7 +393,7 @@ class _HomePage extends StatelessWidget {
           _featureCard(Icons.folder_open_rounded, 'Sections', 'Collapsible groups', const Color(0xFF5856D6)),
           _featureCard(Icons.notifications_rounded, 'Badges', 'Notification counts', const Color(0xFFFF3B30)),
           _featureCard(Icons.palette_rounded, 'Themes', '4 presets available', const Color(0xFFFF9500)),
-          _featureCard(Icons.animation_rounded, 'Transitions', '4 page transition types', const Color(0xFF34C759)),
+          _featureCard(Icons.animation_rounded, 'Transitions', '14 page transition types', const Color(0xFF34C759)),
           _featureCard(Icons.monitor_heart_rounded, 'Status Panel', 'CPU, Memory, Disk', const Color(0xFFFF2D55)),
           _featureCard(Icons.keyboard_rounded, 'Shortcuts', 'Press T to toggle', const Color(0xFF5AC8FA)),
           _featureCard(Icons.devices_rounded, 'Responsive', 'Auto-switch by width', const Color(0xFF8E8E93)),
@@ -707,6 +707,16 @@ class _TransitionsPage extends StatelessWidget {
       PageTransitionType.fade: ('Fade', 'Crossfade between pages', Icons.gradient_rounded),
       PageTransitionType.slideHorizontal: ('Slide Horizontal', 'Slide left/right transition', Icons.swap_horiz_rounded),
       PageTransitionType.slideVertical: ('Slide Vertical', 'Slide up/down transition', Icons.swap_vert_rounded),
+      PageTransitionType.scale: ('Scale', 'Zoom in from center', Icons.zoom_in_rounded),
+      PageTransitionType.scaleDown: ('Scale Down', 'Zoom out effect with fade', Icons.zoom_out_rounded),
+      PageTransitionType.fadeSlideHorizontal: ('Fade + Slide H', 'Fade combined with horizontal slide', Icons.trending_flat_rounded),
+      PageTransitionType.fadeSlideVertical: ('Fade + Slide V', 'Fade combined with vertical slide', Icons.straight_rounded),
+      PageTransitionType.fadeScale: ('Fade + Scale', 'Fade combined with scale zoom', Icons.open_in_full_rounded),
+      PageTransitionType.rotation: ('Rotation', '3D rotation flip on Y-axis', Icons.flip_rounded),
+      PageTransitionType.cubeRotation: ('Cube Rotation', 'Cube-like 3D rotation effect', Icons.view_in_ar_rounded),
+      PageTransitionType.fadeThrough: ('Fade Through', 'Material fade out + scale, fade in + scale', Icons.auto_awesome_rounded),
+      PageTransitionType.sharedAxisHorizontal: ('Shared Axis H', 'Material shared axis horizontal', Icons.align_horizontal_left_rounded),
+      PageTransitionType.sharedAxisVertical: ('Shared Axis V', 'Material shared axis vertical', Icons.align_vertical_top_rounded),
     }[t]!;
 
     return GestureDetector(
@@ -1139,7 +1149,7 @@ class _AboutPage extends StatelessWidget {
             _feature(Icons.folder_open_rounded, 'Collapsible sections with staggered animations'),
             _feature(Icons.menu_rounded, 'Dropdown menus for sections in tab bar mode'),
             _feature(Icons.palette_rounded, 'Comprehensive theming with light/dark presets'),
-            _feature(Icons.animation_rounded, 'Page transitions: fade, slide, instant'),
+            _feature(Icons.animation_rounded, '14 page transitions: fade, slide, scale, rotation, and more'),
             _feature(Icons.monitor_heart_rounded, 'System status panel (CPU, memory, disk)'),
             _feature(Icons.notifications_rounded, 'Badge support for notification counts'),
             _feature(Icons.keyboard_rounded, 'Keyboard shortcut (T) to toggle mode'),

@@ -703,8 +703,11 @@ class _MorphingNavigationState extends State<MorphingNavigation>
             children: [
               // Background hit target for scroll handling in empty sidebar space.
               // Positioned below items in z-order so items get tap priority.
+              // Key is required to prevent Flutter from mismatching elements
+              // when this conditional child is inserted/removed.
               if (t < 0.5 && maxScroll > 0)
                 Positioned(
+                  key: const ValueKey('sidebar_scroll_target'),
                   top: clipTop,
                   left: 0,
                   width: _sidebarWidth,
@@ -720,6 +723,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                 ),
               // Items with scroll transform applied
               Positioned.fill(
+                key: const ValueKey('items_transform_layer'),
                 child: Transform.translate(
                   offset: Offset(0, -_scrollOffset * (1 - t)),
                   child: Stack(

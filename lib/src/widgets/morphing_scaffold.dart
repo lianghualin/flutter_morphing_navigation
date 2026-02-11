@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +24,36 @@ enum PageTransitionType {
 
   /// Slide vertically (up/down)
   slideVertical,
+
+  /// Scale up from center
+  scale,
+
+  /// Scale down (old shrinks away, new appears)
+  scaleDown,
+
+  /// Fade combined with horizontal slide
+  fadeSlideHorizontal,
+
+  /// Fade combined with vertical slide
+  fadeSlideVertical,
+
+  /// Fade combined with scale
+  fadeScale,
+
+  /// 3D rotation flip on Y-axis
+  rotation,
+
+  /// Cube-like 3D rotation between pages
+  cubeRotation,
+
+  /// Material Design fade-through (old fades out + scales down, new fades in + scales up)
+  fadeThrough,
+
+  /// Material Design shared axis X (both pages slide + fade together horizontally)
+  sharedAxisHorizontal,
+
+  /// Material Design shared axis Y (both pages slide + fade together vertically)
+  sharedAxisVertical,
 }
 
 /// A scaffold widget that provides morphing navigation functionality.
@@ -588,6 +620,140 @@ class _PageContainer extends StatelessWidget {
             end: Offset.zero,
           ).animate(animation),
           child: child,
+        );
+
+      case PageTransitionType.scale:
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.8, end: 1.0).animate(animation),
+          child: child,
+        );
+
+      case PageTransitionType.scaleDown:
+        return ScaleTransition(
+          scale: Tween<double>(begin: 1.2, end: 1.0).animate(animation),
+          child: FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.fadeSlideHorizontal:
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.3, 0.0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.fadeSlideVertical:
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.0, 0.3),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.fadeScale:
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.9, end: 1.0).animate(animation),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.rotation:
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, _) {
+            final angle = (1 - animation.value) * math.pi / 2;
+            return Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.001)
+                ..rotateY(angle),
+              child: child,
+            );
+          },
+        );
+
+      case PageTransitionType.cubeRotation:
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, _) {
+            final angle = (1 - animation.value) * math.pi / 2;
+            return Transform(
+              alignment: Alignment.centerLeft,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.002)
+                ..rotateY(angle),
+              child: child,
+            );
+          },
+        );
+
+      case PageTransitionType.fadeThrough:
+        // Material fade-through: new page fades in + scales up
+        final fadeIn = CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+        );
+        final scaleIn = Tween<double>(begin: 0.92, end: 1.0).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+          ),
+        );
+        return FadeTransition(
+          opacity: fadeIn,
+          child: ScaleTransition(
+            scale: scaleIn,
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.sharedAxisHorizontal:
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: const Interval(0.3, 1.0),
+          ),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.15, 0.0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: child,
+          ),
+        );
+
+      case PageTransitionType.sharedAxisVertical:
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: const Interval(0.3, 1.0),
+          ),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.0, 0.15),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: child,
+          ),
         );
     }
   }
