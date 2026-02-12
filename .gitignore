@@ -45,3 +45,18 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 example.mov
+
+# Platform runner directories (this is a package, not an app)
+android/
+ios/
+macos/
+linux/
+windows/
+web/
+
+# Flutter-generated metadata
+.metadata
+
+# Lock files (packages should not commit these)
+pubspec.lock
+example/pubspec.lock
