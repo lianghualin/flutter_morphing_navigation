@@ -26,6 +26,7 @@ class MorphingNavItem extends StatefulWidget {
   final int childIndex; // Index of child for staggered animation
   final int totalChildren; // Total number of children for reverse stagger
   final bool isParentExpanded; // Whether parent section is expanded
+  final bool visibleInTabBar; // Whether visible in current tab bar page
   final bool compact;
   final VoidCallback onTap;
   final nav.NavigationProvider navProvider;
@@ -43,6 +44,7 @@ class MorphingNavItem extends StatefulWidget {
     this.childIndex = 0,
     this.totalChildren = 0,
     this.isParentExpanded = true,
+    this.visibleInTabBar = true,
     required this.compact,
     required this.onTap,
     required this.navProvider,
@@ -229,7 +231,7 @@ class _MorphingNavItemState extends State<MorphingNavItem>
                   opacity: sidebarLabelOpacity,
                   child: _buildSidebarLayout(iconColor, textColor),
                 ),
-              // Tab bar layout (Column: icon over label)
+              // Tab bar layout (text label only)
               if (tabBarLabelOpacity > 0 || widget.t > 0.3)
                 Opacity(
                   opacity: widget.t > 0.7
@@ -243,15 +245,30 @@ class _MorphingNavItemState extends State<MorphingNavItem>
       ),
     );
 
+    // Hide items outside the visible tab bar page
+    final bool hiddenByPagination = !widget.visibleInTabBar && widget.t > 0.5;
+    final effectiveChild = hiddenByPagination
+        ? AnimatedOpacity(
+            opacity: 0.0,
+            duration: const Duration(milliseconds: 200),
+            child: IgnorePointer(child: positionedChild),
+          )
+        : AnimatedOpacity(
+            opacity: 1.0,
+            duration: const Duration(milliseconds: 200),
+            child: positionedChild,
+          );
+
     // During morphing: use Positioned (direct from Rect.lerp, synced with container)
     // In sidebar mode: use AnimatedPositioned (for smooth section expand/collapse)
+    // In tab bar mode: use AnimatedPositioned (for pagination slide animation)
     if (isMorphing) {
       return Positioned(
         left: rect.left,
         top: rect.top,
         width: rect.width,
         height: rect.height,
-        child: positionedChild,
+        child: effectiveChild,
       );
     } else {
       return AnimatedPositioned(
@@ -261,7 +278,7 @@ class _MorphingNavItemState extends State<MorphingNavItem>
         top: rect.top,
         width: rect.width,
         height: rect.height,
-        child: positionedChild,
+        child: effectiveChild,
       );
     }
   }
@@ -361,36 +378,36 @@ class _MorphingNavItemState extends State<MorphingNavItem>
     );
   }
 
-  /// Build tab bar layout (icon only, no label, with tooltip on hover)
-  Widget _buildTabBarLayout(Color iconColor, Color textColor, bool showLabel) {
-    return Tooltip(
-      message: widget.displayItem.label,
-      waitDuration: const Duration(milliseconds: 300),
-      preferBelow: false,
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              widget.displayItem.icon,
-              size: widget.compact ? 26 : 30,
-              color: iconColor,
+  /// Build tab bar layout (text label only, no icon)
+  Widget _buildTabBarLayout(Color _, Color textColor, bool showLabel) {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            widget.displayItem.label,
+            style: TextStyle(
+              fontSize: widget.compact ? 12 : 13,
+              fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+              color: textColor,
             ),
-            if (widget.isSection) ...[
-              const SizedBox(width: 2),
-              Icon(
-                Icons.arrow_drop_down_rounded,
-                size: 18,
-                color: widget.isSelected ? Colors.white : _theme.textSecondaryColor,
-              ),
-            ],
-            if (widget.item.badge != null) ...[
-              const SizedBox(width: 4),
-              _buildBadge(widget.item.badge!, small: true),
-            ],
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+          if (widget.isSection) ...[
+            const SizedBox(width: 2),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              size: 18,
+              color: widget.isSelected ? Colors.white : _theme.textSecondaryColor,
+            ),
           ],
-        ),
+          if (widget.item.badge != null) ...[
+            const SizedBox(width: 4),
+            _buildBadge(widget.item.badge!, small: true),
+          ],
+        ],
       ),
     );
   }

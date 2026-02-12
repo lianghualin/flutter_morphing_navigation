@@ -82,6 +82,10 @@ class _MorphingNavigationState extends State<MorphingNavigation>
   static const double _tabBarTopMargin = 16.0;
   static const double _tabBarBottomMargin = 24.0;
 
+  // Tab bar pagination state
+  int _pageStartIndex = 0;
+  static const double _arrowButtonWidth = 36.0;
+
   @override
   void initState() {
     super.initState();
@@ -115,26 +119,120 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     super.dispose();
   }
 
-  /// Calculate the width of the tab bar based on number of items
-  double _calculateTabBarWidth(List<NavItem> items, bool compact, {bool hasStatus = false}) {
-    // Count top-level items only (sections + regular items)
-    final itemCount = items.length;
-    final itemWidth = compact ? 56.0 : 72.0;
-    final toggleWidth = compact ? 48.0 : 56.0;
-    final dividerCount = itemCount; // dividers between items + before toggle
-    final dividerWidth = 1.0;
-    final horizontalPadding = compact ? 8.0 : 12.0;
+  /// Measure the tab bar width needed for a single item's text label.
+  double _measureTabBarItemWidth(NavItem item, bool compact) {
+    final fontSize = compact ? 12.0 : 13.0;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: item.label,
+        style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
+      ),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final textWidth = tp.width;
+    tp.dispose();
+    // horizontal padding inside each item + room for section dropdown arrow / badge
+    final extra = (item.hasChildren ? 18.0 : 0.0) + (item.badge != null ? 24.0 : 0.0);
+    final minWidth = compact ? 48.0 : 56.0;
+    return (textWidth + 24 + extra).clamp(minWidth, double.infinity); // 24 = inner horizontal padding (12*2)
+  }
 
-    // Status indicator width (divider + time + warnings + 3 circles + user avatar + padding)
-    // Breakdown: padding(24) + divider(1) + spacing(12) + time(40) + spacing(12) +
-    //            warning(40) + spacing(8) + circles(78) + circle-spacing(12) +
-    //            spacing(8) + avatar(26) = ~260
+  /// Calculate the visible item range for tab bar pagination.
+  ///
+  /// Returns (startIndex, endIndex, showLeftArrow, showRightArrow).
+  /// The toggle button and status indicator are always outside pagination.
+  ({int start, int end, bool showLeft, bool showRight}) _getVisibleItemRange(
+    List<NavItem> items,
+    bool compact,
+    double screenWidth, {
+    bool hasStatus = false,
+  }) {
+    final toggleWidth = compact ? 48.0 : 56.0;
+    final horizontalPadding = compact ? 8.0 : 12.0;
+    final statusWidth = hasStatus ? (compact ? 240.0 : 260.0) : 0.0;
+    final maxTabBarWidth = screenWidth - 32; // 16px margin on each side
+
+    // Fixed overhead: toggle + status + padding + divider after toggle
+    final fixedWidth = toggleWidth + statusWidth + (horizontalPadding * 2) + 1;
+
+    // Check if all items fit
+    double allItemsWidth = 0;
+    for (int i = 0; i < items.length; i++) {
+      allItemsWidth += _measureTabBarItemWidth(items[i], compact) + 1; // +1 divider
+    }
+
+    if (fixedWidth + allItemsWidth <= maxTabBarWidth) {
+      // All items fit — no pagination needed
+      return (start: 0, end: items.length, showLeft: false, showRight: false);
+    }
+
+    // Pagination needed — clamp page start
+    final startIndex = _pageStartIndex.clamp(0, items.length - 1);
+    final showLeft = startIndex > 0;
+
+    // Available width for items (subtract arrows as needed)
+    double available = maxTabBarWidth - fixedWidth;
+    if (showLeft) available -= _arrowButtonWidth + 1;
+    // Tentatively reserve right arrow space
+    final availableWithRight = available - _arrowButtonWidth - 1;
+
+    // Fill items from startIndex until they exceed available width
+    int endIndex = startIndex;
+    double usedWidth = 0;
+    for (int i = startIndex; i < items.length; i++) {
+      final w = _measureTabBarItemWidth(items[i], compact) + 1;
+      if (usedWidth + w > availableWithRight && i > startIndex) break;
+      usedWidth += w;
+      endIndex = i + 1;
+    }
+
+    final showRight = endIndex < items.length;
+
+    // If no right arrow needed, reclaim that space and try to fit more
+    if (!showRight) {
+      endIndex = startIndex;
+      usedWidth = 0;
+      for (int i = startIndex; i < items.length; i++) {
+        final w = _measureTabBarItemWidth(items[i], compact) + 1;
+        if (usedWidth + w > available && i > startIndex) break;
+        usedWidth += w;
+        endIndex = i + 1;
+      }
+    }
+
+    return (start: startIndex, end: endIndex, showLeft: showLeft, showRight: endIndex < items.length);
+  }
+
+  /// Calculate the width of the tab bar based on visible items only.
+  double _calculateTabBarWidth(
+    List<NavItem> items,
+    bool compact,
+    double screenWidth, {
+    bool hasStatus = false,
+  }) {
+    final range = _getVisibleItemRange(items, compact, screenWidth, hasStatus: hasStatus);
+    final toggleWidth = compact ? 48.0 : 56.0;
+    final horizontalPadding = compact ? 8.0 : 12.0;
     final statusWidth = hasStatus ? (compact ? 240.0 : 260.0) : 0.0;
 
-    return (itemCount * itemWidth) +
-        toggleWidth +
+    // Sum visible item widths
+    double visibleItemsWidth = 0;
+    for (int i = range.start; i < range.end; i++) {
+      visibleItemsWidth += _measureTabBarItemWidth(items[i], compact);
+    }
+    final visibleCount = range.end - range.start;
+
+    // Arrow buttons
+    final leftArrowWidth = range.showLeft ? _arrowButtonWidth + 1 : 0.0;
+    final rightArrowWidth = range.showRight ? _arrowButtonWidth + 1 : 0.0;
+
+    return toggleWidth +
+        visibleItemsWidth +
+        leftArrowWidth +
+        rightArrowWidth +
         statusWidth +
-        (dividerCount * dividerWidth) +
+        ((visibleCount + 1) * 1.0) + // dividers: after toggle + between/after items
         (horizontalPadding * 2);
   }
 
@@ -145,7 +243,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
   /// Get the tab bar container rect
   Rect _getTabBarContainerRect(Size screenSize, List<NavItem> items, bool compact, bool isBottom, {bool hasStatus = false}) {
-    final tabBarWidth = _calculateTabBarWidth(items, compact, hasStatus: hasStatus);
+    final tabBarWidth = _calculateTabBarWidth(items, compact, screenSize.width, hasStatus: hasStatus);
     final left = (screenSize.width - tabBarWidth) / 2;
     final top = isBottom
         ? screenSize.height - _tabBarHeight - _tabBarBottomMargin
@@ -164,7 +262,10 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     return Rect.fromLTWH(left, top, width, _itemHeight);
   }
 
-  /// Get tab bar item rect for a given index
+  /// Get tab bar item rect for a given index.
+  ///
+  /// For items outside the visible pagination range, returns a collapsed rect
+  /// at the edge of the visible area (so morph animations have a sensible target).
   Rect _getTabBarItemRect(
     int index,
     Size screenSize,
@@ -174,16 +275,35 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     bool hasStatus = false,
   }) {
     final containerRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: hasStatus);
-    final itemWidth = compact ? 56.0 : 72.0;
     final horizontalPadding = compact ? 8.0 : 12.0;
     final verticalPadding = 8.0;
-
-    // Calculate horizontal position within container
-    // Toggle button is on the left, so items start after toggle + divider
     final toggleWidth = compact ? 48.0 : 56.0;
-    final left = containerRect.left + horizontalPadding + toggleWidth + 1 + index * (itemWidth + 1);
     final top = containerRect.top + verticalPadding;
     final height = containerRect.height - verticalPadding * 2;
+
+    final range = _getVisibleItemRange(items, compact, screenSize.width, hasStatus: hasStatus);
+
+    final itemWidth = _measureTabBarItemWidth(items[index], compact);
+
+    // Items outside visible range: position at the edge with real width
+    // so AnimatedPositioned can animate them sliding in/out.
+    if (index < range.start) {
+      // Left of visible area — stacked at left edge (behind left arrow)
+      final leftEdge = containerRect.left + horizontalPadding + toggleWidth + 1;
+      return Rect.fromLTWH(leftEdge - itemWidth, top, itemWidth, height);
+    }
+    if (index >= range.end) {
+      // Right of visible area — stacked at right edge (behind right arrow)
+      return Rect.fromLTWH(containerRect.right - horizontalPadding, top, itemWidth, height);
+    }
+
+    // Item is visible — position after toggle + left arrow + preceding visible items
+    double left = containerRect.left + horizontalPadding + toggleWidth + 1;
+    if (range.showLeft) left += _arrowButtonWidth + 1;
+
+    for (int i = range.start; i < index; i++) {
+      left += _measureTabBarItemWidth(items[i], compact) + 1;
+    }
 
     return Rect.fromLTWH(left, top, itemWidth, height);
   }
@@ -576,12 +696,17 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     if (opacity <= 0) return const SizedBox.shrink();
 
     final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: true);
-    final itemWidth = compact ? 56.0 : 72.0;
     final toggleWidth = compact ? 48.0 : 56.0;
     final horizontalPadding = compact ? 8.0 : 12.0;
+    final range = _getVisibleItemRange(items, compact, screenSize.width, hasStatus: true);
 
-    // Position after all items (toggle is on the left, then items)
-    final left = tabBarRect.left + horizontalPadding + toggleWidth + 1 + items.length * (itemWidth + 1);
+    // Position after visible items + arrows
+    double left = tabBarRect.left + horizontalPadding + toggleWidth + 1;
+    if (range.showLeft) left += _arrowButtonWidth + 1;
+    for (int i = range.start; i < range.end; i++) {
+      left += _measureTabBarItemWidth(items[i], compact) + 1;
+    }
+    if (range.showRight) left += _arrowButtonWidth + 1;
 
     return Positioned(
       left: left,
@@ -592,6 +717,87 @@ class _MorphingNavigationState extends State<MorphingNavigation>
         opacity: opacity,
       ),
     );
+  }
+
+  /// Build pagination arrow buttons for tab bar overflow.
+  List<Widget> _buildPaginationArrows(
+    double t,
+    Size screenSize,
+    List<NavItem> items,
+    bool compact,
+    bool isBottom, {
+    bool hasStatus = false,
+  }) {
+    // Only show in tab bar mode
+    final opacity = ((t - 0.7) * 3.33).clamp(0.0, 1.0);
+    if (opacity <= 0) return const [];
+
+    final range = _getVisibleItemRange(items, compact, screenSize.width, hasStatus: hasStatus);
+    if (!range.showLeft && !range.showRight) return const [];
+
+    final containerRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: hasStatus);
+    final horizontalPadding = compact ? 8.0 : 12.0;
+    final verticalPadding = 8.0;
+    final toggleWidth = compact ? 48.0 : 56.0;
+    final top = containerRect.top + verticalPadding;
+    final height = containerRect.height - verticalPadding * 2;
+
+    final widgets = <Widget>[];
+
+    if (range.showLeft) {
+      final leftArrowLeft = containerRect.left + horizontalPadding + toggleWidth + 1;
+      widgets.add(
+        Positioned(
+          left: leftArrowLeft,
+          top: top,
+          width: _arrowButtonWidth,
+          height: height,
+          child: Opacity(
+            opacity: opacity,
+            child: _PaginationArrow(
+              icon: Icons.chevron_left_rounded,
+              onTap: () {
+                setState(() {
+                  // Go back by the number of currently visible items
+                  final visibleCount = range.end - range.start;
+                  _pageStartIndex = (_pageStartIndex - visibleCount).clamp(0, items.length - 1);
+                });
+              },
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (range.showRight) {
+      // Right arrow is positioned after the last visible item
+      double rightArrowLeft = containerRect.left + horizontalPadding + toggleWidth + 1;
+      if (range.showLeft) rightArrowLeft += _arrowButtonWidth + 1;
+      for (int i = range.start; i < range.end; i++) {
+        rightArrowLeft += _measureTabBarItemWidth(items[i], compact) + 1;
+      }
+      widgets.add(
+        Positioned(
+          left: rightArrowLeft,
+          top: top,
+          width: _arrowButtonWidth,
+          height: height,
+          child: Opacity(
+            opacity: opacity,
+            child: _PaginationArrow(
+              icon: Icons.chevron_right_rounded,
+              onTap: () {
+                setState(() {
+                  _pageStartIndex = range.end.clamp(0, items.length - 1);
+                });
+              },
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widgets;
   }
 
   /// Build the toggle button — same button in both sidebar and tab bar modes.
@@ -679,6 +885,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
             _controller.forward();
           } else {
             _controller.reverse();
+            _pageStartIndex = 0; // Reset pagination when returning to sidebar
           }
           _previousMode = navProvider.mode;
         }
@@ -728,6 +935,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
                     // Sidebar status panel (fades out)
                     _buildSidebarStatusPanel(t, screenSize, status),
+
+                    // Tab bar pagination arrows
+                    ..._buildPaginationArrows(t, screenSize, items, compact, isBottom, hasStatus: hasStatus),
 
                     // Tab bar status indicator (fades in)
                     _buildTabBarStatusIndicator(t, screenSize, items, compact, isBottom, status),
@@ -843,9 +1053,13 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final widgets = <Widget>[];
     int sidebarIndex = 0;
 
+    // Determine which items are visible in tab bar pagination
+    final visibleRange = _getVisibleItemRange(items, compact, screenSize.width, hasStatus: hasStatus);
+
     for (int tabBarIndex = 0; tabBarIndex < items.length; tabBarIndex++) {
       final item = items[tabBarIndex];
       final isSection = item.hasChildren;
+      final isInVisibleRange = tabBarIndex >= visibleRange.start && tabBarIndex < visibleRange.end;
 
       // Calculate sidebar position accounting for expanded sections
       final sidebarRect = _getSidebarItemRect(sidebarIndex, screenSize);
@@ -888,6 +1102,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
           tabBarRect: tabBarRect,
           isSelected: isSelected,
           isSection: isSection,
+          visibleInTabBar: isInVisibleRange,
           compact: compact,
           onTap: () {
             if (isSection) {
@@ -1002,6 +1217,50 @@ class _ToggleButtonState extends State<_ToggleButton> {
                 color: theme.textSecondaryColor,
                 strokeWidth: (iconSize / 16).clamp(1.0, 3.0),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pagination arrow button for tab bar overflow (< and >)
+class _PaginationArrow extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _PaginationArrow({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  State<_PaginationArrow> createState() => _PaginationArrowState();
+}
+
+class _PaginationArrowState extends State<_PaginationArrow> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = MorphingNavigationThemeProvider.of(context);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: _isHovered ? Colors.black.withValues(alpha: 0.05) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Center(
+            child: Icon(
+              widget.icon,
+              size: 20,
+              color: theme.textSecondaryColor,
             ),
           ),
         ),
