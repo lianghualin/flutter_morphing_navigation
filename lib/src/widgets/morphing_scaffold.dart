@@ -240,13 +240,15 @@ class MorphingNavigationScaffold extends StatefulWidget {
 }
 
 class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late MorphingNavigationController _controller;
   late _LegacyProviderAdapter _legacyProvider;
   final FocusNode _focusNode = FocusNode();
   late AnimationController _paddingController;
   late Animation<double> _paddingAnimation;
+  late AnimationController _scrimController;
   MorphingNavigationMode? _previousMode;
+  bool _wasOverlay = false;
 
   MorphingNavigationTheme get _theme => widget.theme ?? const MorphingNavigationTheme();
 
@@ -291,6 +293,12 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
     if (_controller.isTabBarMode) {
       _paddingController.value = 1.0;
     }
+
+    _scrimController = AnimationController(
+      vsync: this,
+      duration: _theme.modeTransitionDuration,
+    );
+
   }
 
   @override
@@ -326,6 +334,7 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
   void dispose() {
     _focusNode.dispose();
     _paddingController.dispose();
+    _scrimController.dispose();
     _legacyProvider.dispose();
     _controller.dispose();
     super.dispose();
@@ -361,10 +370,25 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
               _previousMode = _controller.mode;
             } else if (_previousMode != _controller.mode) {
               if (_controller.isTabBarMode) {
-                _paddingController.forward();
+                if (_wasOverlay) {
+                  // Was overlay → no padding to animate, just hide scrim
+                  _paddingController.value = 1.0;
+                  _scrimController.reverse();
+                } else {
+                  // Was push sidebar → animate padding back
+                  _paddingController.forward();
+                }
               } else {
-                _paddingController.reverse();
+                if (_controller.isOverlay) {
+                  // Overlay sidebar → keep content full-width, show scrim
+                  _paddingController.value = 1.0;
+                  _scrimController.forward();
+                } else {
+                  // Push sidebar → animate padding
+                  _paddingController.reverse();
+                }
               }
+              _wasOverlay = _controller.isOverlay;
               _previousMode = _controller.mode;
             }
 
@@ -395,6 +419,23 @@ class _MorphingNavigationScaffoldState extends State<MorphingNavigationScaffold>
                           left: _paddingAnimation.value,
                         ),
                         child: contentWidget,
+                      );
+                    },
+                  ),
+                  // Scrim for overlay sidebar
+                  AnimatedBuilder(
+                    animation: _scrimController,
+                    builder: (context, _) {
+                      if (_scrimController.value <= 0) {
+                        return const SizedBox.shrink();
+                      }
+                      return GestureDetector(
+                        onTap: () => _controller.dismissOverlay(),
+                        child: Container(
+                          color: Colors.black.withValues(
+                            alpha: 0.4 * _scrimController.value,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -445,6 +486,9 @@ class _LegacyProviderAdapter extends NavigationProvider {
   bool get isSidebarMode => _controller.isSidebarMode;
 
   @override
+  bool get isOverlay => _controller.isOverlay;
+
+  @override
   String get selectedItemId => _controller.selectedItemId;
 
   @override
@@ -473,6 +517,9 @@ class _LegacyProviderAdapter extends NavigationProvider {
 
   @override
   void resetUserOverride() => _controller.resetUserOverride();
+
+  @override
+  void dismissOverlay() => _controller.dismissOverlay();
 
   @override
   void toggleSection(String sectionId) => _controller.toggleSection(sectionId);

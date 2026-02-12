@@ -35,6 +35,7 @@ class NavigationProvider extends ChangeNotifier {
   MorphingNavFooter? get footer => _footer;
   bool get isTabBarMode => _mode == NavigationMode.tabBar;
   bool get isSidebarMode => _mode == NavigationMode.sidebar;
+  bool get isOverlay => false;
   String get selectedItemId => _selectedItemId;
   Set<String> get expandedSections => _expandedSections;
   double get screenWidth => _screenWidth;
@@ -97,6 +98,10 @@ class NavigationProvider extends ChangeNotifier {
     _isUserOverride = false;
     updateScreenWidth(_screenWidth);
   }
+
+  // Dismiss the overlay sidebar
+  void dismissOverlay() {}
+
 
   // Toggle section expansion (for accordion in sidebar)
   void toggleSection(String sectionId) {

@@ -75,6 +75,7 @@ class MorphingNavigationController extends ChangeNotifier {
   String _selectedItemId;
   final Set<String> _expandedSections;
   bool _isUserOverride = false;
+  bool _isOverlay = false;
   double _screenWidth = 1200;
   MorphingNavigationTheme _theme;
   SystemStatus? _status;
@@ -97,6 +98,7 @@ class MorphingNavigationController extends ChangeNotifier {
   String get selectedItemId => _selectedItemId;
   Set<String> get expandedSections => Set.unmodifiable(_expandedSections);
   double get screenWidth => _screenWidth;
+  bool get isOverlay => _isOverlay;
   MorphingNavigationTheme get theme => _theme;
   SystemStatus? get status => _status;
   bool get showHeader => _showHeader;
@@ -171,6 +173,9 @@ class MorphingNavigationController extends ChangeNotifier {
     _mode = _mode == MorphingNavigationMode.sidebar
         ? MorphingNavigationMode.tabBar
         : MorphingNavigationMode.sidebar;
+    // On narrow screens, sidebar becomes an overlay instead of pushing content
+    _isOverlay = _mode == MorphingNavigationMode.sidebar &&
+        _screenWidth < _theme.breakpointLarge;
     onModeChanged?.call(_mode);
     notifyListeners();
   }
@@ -179,6 +184,8 @@ class MorphingNavigationController extends ChangeNotifier {
   void setMode(MorphingNavigationMode newMode) {
     if (_mode != newMode) {
       _mode = newMode;
+      _isOverlay = _mode == MorphingNavigationMode.sidebar &&
+          _screenWidth < _theme.breakpointLarge;
       onModeChanged?.call(_mode);
       notifyListeners();
     }
@@ -186,17 +193,28 @@ class MorphingNavigationController extends ChangeNotifier {
 
   /// Update screen width and handle responsive mode changes
   void updateScreenWidth(double width) {
+    final previousWidth = _screenWidth;
     _screenWidth = width;
 
-    // Only auto-switch if user hasn't manually overridden
+    // Clear user override when crossing the breakpoint — the user's manual
+    // toggle was for the previous screen size context, not all future states.
+    final crossedBreakpoint =
+        (previousWidth < _theme.breakpointLarge) != (width < _theme.breakpointLarge);
+    if (crossedBreakpoint) {
+      _isUserOverride = false;
+    }
+
+    // Auto-switch when not overridden
     if (!_isUserOverride) {
       if (width < _theme.breakpointLarge && _mode == MorphingNavigationMode.sidebar) {
         _mode = MorphingNavigationMode.tabBar;
+        _isOverlay = false;
         onModeChanged?.call(_mode);
         notifyListeners();
       } else if (width >= _theme.breakpointLarge &&
           _mode == MorphingNavigationMode.tabBar) {
         _mode = MorphingNavigationMode.sidebar;
+        _isOverlay = false;
         onModeChanged?.call(_mode);
         notifyListeners();
       }
@@ -207,6 +225,13 @@ class MorphingNavigationController extends ChangeNotifier {
   void resetUserOverride() {
     _isUserOverride = false;
     updateScreenWidth(_screenWidth);
+  }
+
+  /// Dismiss the overlay sidebar (switch back to tab bar)
+  void dismissOverlay() {
+    if (_isOverlay && _mode == MorphingNavigationMode.sidebar) {
+      toggleMode();
+    }
   }
 
   /// Toggle section expansion (for accordion in sidebar)
