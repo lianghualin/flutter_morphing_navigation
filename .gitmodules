@@ -1,0 +1,3 @@
+[submodule "flutter_icon"]
+	path = flutter_icon
+	url = https://github.com/lianghualin/flutter_icon.git

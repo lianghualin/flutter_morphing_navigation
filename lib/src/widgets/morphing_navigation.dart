@@ -9,6 +9,7 @@ import '../theme/navigation_theme.dart';
 import 'morphing_nav_item.dart';
 import 'navigation_header.dart';
 import 'status_panel.dart';
+import 'package:flutter_icon/flutter_icon.dart';
 
 /// MorphingNavigation is the main orchestrator widget that handles the
 /// continuous morphing animation between sidebar and tab bar navigation.
@@ -386,9 +387,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
                 ),
               ),
               if (config?.trailing != null) config!.trailing!,
-              // Toggle button in header
-              if (showToggle)
-                _HeaderToggleButton(onTap: navProvider.toggleMode),
+              // Reserve space for the unified morph toggle button that
+              // overlays this area (rendered separately so it can morph).
+              if (showToggle) const SizedBox(width: 56),
             ],
           ),
         ),
@@ -593,7 +594,10 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     );
   }
 
-  /// Build the toggle button
+  /// Build the toggle button — same button in both sidebar and tab bar modes.
+  /// At t=0 it sits in the sidebar header area; at t=1 it's the leftmost
+  /// tab bar item.  The MorphIconPainter smoothly morphs between the two
+  /// icon states in sync.
   Widget _buildToggleButton(
     double t,
     Size screenSize,
@@ -603,29 +607,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     nav.NavigationProvider navProvider, {
     bool hasStatus = false,
   }) {
-    // In sidebar mode (t=0): hidden when header is shown (header has its own toggle)
-    // When header hidden: always visible, positioned at top-right of sidebar
-    // In tabbar mode (t=1): show at end of items
-    // During transition: appears and moves to tabbar position
-
-    // When header is shown, only show this toggle after header starts fading
-    final showThreshold = _showHeader ? 0.1 : 0.0;
-    if (t <= showThreshold && _showHeader) return const SizedBox.shrink();
-
-    // Sidebar start position — centered in header area or toggle row
-    final sidebarToggleTop = _showHeader
-        ? 20.0 // aligned with header padding
-        : (_toggleRowHeight - 32) / 2; // centered in reserved toggle row
-    final sidebarRect = Rect.fromLTWH(
-      _sidebarWidth - 20 - 32, // right padding - button width
-      sidebarToggleTop,
-      32,
-      32,
-    );
-
+    // Tab bar destination rect
     final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: hasStatus);
     final toggleWidth = compact ? 48.0 : 56.0;
-    final itemWidth = compact ? 56.0 : 72.0;
     final horizontalPadding = compact ? 8.0 : 12.0;
     final verticalPadding = 8.0;
 
@@ -636,37 +620,30 @@ class _MorphingNavigationState extends State<MorphingNavigation>
       tabBarRect.height - verticalPadding * 2,
     );
 
-    // Remap t for smooth interpolation
-    final remapStart = _showHeader ? 0.1 : 0.0;
-    final remapRange = 1.0 - remapStart;
-    final remappedT = ((t - remapStart) / remapRange).clamp(0.0, 1.0);
-    final rect = MorphingNavigation.morphRect(sidebarRect, tabBarToggleRect, remappedT);
+    // Sidebar start position — same size as the tab bar toggle so the
+    // button looks identical in both modes; placed at the trailing end of
+    // the header row (or the dedicated toggle row when header is hidden).
+    final sidebarToggleTop = _showHeader
+        ? (_headerHeight - tabBarToggleRect.height) / 2
+        : (_toggleRowHeight - tabBarToggleRect.height) / 2;
+    final sidebarRect = Rect.fromLTWH(
+      _sidebarWidth - 20 - toggleWidth,
+      sidebarToggleTop,
+      toggleWidth,
+      tabBarToggleRect.height,
+    );
 
-    // Icon transitions - sidebar icon fades out, then tabbar icon fades in
-    final sidebarIconOpacity = (1.0 - remappedT * 2).clamp(0.0, 1.0);
-    final tabBarIconOpacity = ((remappedT - 0.5) * 2).clamp(0.0, 1.0);
-
-    // Overall opacity
-    final overallOpacity = _showHeader
-        ? ((t - 0.1) * 5).clamp(0.0, 1.0) // fades in as header fades out
-        : 1.0; // always visible when no header
+    final rect = MorphingNavigation.morphRect(sidebarRect, tabBarToggleRect, t);
 
     return Positioned(
       left: rect.left,
       top: rect.top,
       width: rect.width,
       height: rect.height,
-      child: Opacity(
-        opacity: overallOpacity,
-        child: _ToggleButton(
-          sidebarIcon: Icons.menu_open_rounded,
-          tabBarIcon: Icons.view_sidebar_rounded,
-          sidebarIconOpacity: sidebarIconOpacity,
-          tabBarIconOpacity: tabBarIconOpacity,
-          onTap: navProvider.toggleMode,
-          compact: compact,
-          t: remappedT,
-        ),
+      child: _ToggleButton(
+        onTap: navProvider.toggleMode,
+        compact: compact,
+        t: t,
       ),
     );
   }
@@ -985,19 +962,11 @@ class _MorphingNavigationState extends State<MorphingNavigation>
 
 /// Toggle button widget
 class _ToggleButton extends StatefulWidget {
-  final IconData sidebarIcon;
-  final IconData tabBarIcon;
-  final double sidebarIconOpacity;
-  final double tabBarIconOpacity;
   final VoidCallback onTap;
   final bool compact;
   final double t;
 
   const _ToggleButton({
-    required this.sidebarIcon,
-    required this.tabBarIcon,
-    required this.sidebarIconOpacity,
-    required this.tabBarIconOpacity,
     required this.onTap,
     required this.compact,
     required this.t,
@@ -1013,6 +982,7 @@ class _ToggleButtonState extends State<_ToggleButton> {
   @override
   Widget build(BuildContext context) {
     final theme = MorphingNavigationThemeProvider.of(context);
+    final iconSize = widget.compact ? 20.0 : 24.0;
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -1022,52 +992,16 @@ class _ToggleButtonState extends State<_ToggleButton> {
         child: Container(
           decoration: BoxDecoration(
             color: _isHovered ? Colors.black.withValues(alpha: 0.05) : Colors.transparent,
-            borderRadius: BorderRadius.circular(lerpDouble(10, 20, widget.t)!),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Center(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Sidebar icon (collapse)
-                if (widget.sidebarIconOpacity > 0)
-                  Opacity(
-                    opacity: widget.sidebarIconOpacity,
-                    child: Icon(
-                      widget.sidebarIcon,
-                      size: 20,
-                      color: theme.textSecondaryColor,
-                    ),
-                  ),
-                // Tab bar icon (expand)
-                if (widget.tabBarIconOpacity > 0)
-                  Opacity(
-                    opacity: widget.tabBarIconOpacity,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          widget.tabBarIcon,
-                          size: widget.compact ? 20 : 24,
-                          color: theme.textSecondaryColor,
-                        ),
-                        if (widget.t > 0.7) ...[
-                          const SizedBox(height: 4),
-                          Opacity(
-                            opacity: ((widget.t - 0.7) * 3.33).clamp(0.0, 1.0),
-                            child: Text(
-                              'Expand',
-                              style: TextStyle(
-                                fontSize: widget.compact ? 10 : 11,
-                                fontWeight: FontWeight.w500,
-                                color: theme.textSecondaryColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-              ],
+            child: CustomPaint(
+              size: Size.square(iconSize),
+              painter: MorphIconPainter(
+                progress: 1.0 - widget.t,
+                color: theme.textSecondaryColor,
+                strokeWidth: (iconSize / 16).clamp(1.0, 3.0),
+              ),
             ),
           ),
         ),
@@ -1105,43 +1039,3 @@ class _ItemsClipper extends CustomClipper<Rect> {
 }
 
 /// Header toggle button (for sidebar mode)
-class _HeaderToggleButton extends StatefulWidget {
-  final VoidCallback onTap;
-
-  const _HeaderToggleButton({required this.onTap});
-
-  @override
-  State<_HeaderToggleButton> createState() => _HeaderToggleButtonState();
-}
-
-class _HeaderToggleButtonState extends State<_HeaderToggleButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = MorphingNavigationThemeProvider.of(context);
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: theme.hoverDuration,
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: _isHovered
-                ? theme.primaryColor.withValues(alpha: 0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            Icons.menu_open_rounded,
-            size: 20,
-            color: theme.textSecondaryColor,
-          ),
-        ),
-      ),
-    );
-  }
-}

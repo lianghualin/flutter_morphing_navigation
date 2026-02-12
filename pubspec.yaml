@@ -21,6 +21,8 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^6.1.2
+  flutter_icon:
+    path: flutter_icon
 
 dev_dependencies:
   flutter_test:
