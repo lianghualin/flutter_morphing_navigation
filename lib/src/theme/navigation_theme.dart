@@ -122,9 +122,9 @@ class MorphingNavigationTheme {
 
     // Dimensions
     this.sidebarWidth = 260.0,
-    this.tabBarHeight = 64.0,
+    this.tabBarHeight = 44.0,
     this.tabBarItemWidth = 72.0,
-    this.tabBarBorderRadius = 32.0,
+    this.tabBarBorderRadius = 22.0,
     this.itemHeight = 46.0,
     this.itemSpacing = 4.0,
     this.itemBorderRadius = 10.0,

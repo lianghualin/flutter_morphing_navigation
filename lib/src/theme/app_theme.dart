@@ -56,9 +56,9 @@ class AppTheme {
   // Dimensions
   static const double sidebarWidth = 260.0;
   static const double sidebarCollapsedWidth = 0.0;
-  static const double tabBarHeight = 64.0;
+  static const double tabBarHeight = 44.0;
   static const double tabBarItemWidth = 72.0;
-  static const double tabBarBorderRadius = 32.0;
+  static const double tabBarBorderRadius = 22.0;
 
   // Breakpoints
   static const double breakpointLarge = 1024.0;

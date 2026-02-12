@@ -600,10 +600,35 @@ class _PageContainer extends StatelessWidget {
     // Get the page for the selected item, or fall back to first page
     final page = pages[selectedItemId] ?? pages.values.first;
 
-    // Wrap page with header if enabled
-    final pageContent = showPageHeader
-        ? _buildPageWithHeader(context, page)
-        : page;
+    // Determine page wrapping based on mode
+    Widget pageContent;
+    if (showPageHeader) {
+      final navProvider = Provider.of<NavigationProvider>(context);
+      final isTopTabBar = navProvider.isTabBarMode &&
+          navProvider.tabBarPosition == TabBarPosition.top;
+
+      if (isTopTabBar) {
+        // Top tab bar mode: hide page header, inject tab bar safe area
+        // so pages that respect MediaQuery.padding.top will add scroll padding.
+        // Content can then scroll behind the glass tab bar.
+        final theme = MorphingNavigationThemeProvider.of(context);
+        final tabBarAreaHeight = 16.0 + theme.tabBarHeight + 20.0;
+        final existingData = MediaQuery.of(context);
+        pageContent = MediaQuery(
+          data: existingData.copyWith(
+            padding: existingData.padding.copyWith(
+              top: existingData.padding.top + tabBarAreaHeight,
+            ),
+          ),
+          child: page,
+        );
+      } else {
+        // Sidebar or bottom tab bar: show page header as normal
+        pageContent = _buildPageWithHeader(context, page);
+      }
+    } else {
+      pageContent = page;
+    }
 
     // If no transition, just return the page directly
     if (transitionType == PageTransitionType.none) {
@@ -639,24 +664,24 @@ class _PageContainer extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Page header
+          // Page header — sized to match tab bar area (16+44+16=76 + _Page's 8px ≈ tab bar mode)
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(navItem.icon, color: color, size: 28),
+                  child: Icon(navItem.icon, color: color, size: 24),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Text(
                   navItem.label,
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

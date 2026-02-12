@@ -224,10 +224,18 @@ class _Page extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Use MediaQuery.padding.top so content starts below the tab bar
+    // in top tab bar mode, and scrolls behind the glass tab bar.
+    final topPadding = MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: _bg(isDark),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: topPadding + 8,
+          bottom: 8,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: children,
