@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/nav_item.dart';
 import '../controller/navigation_provider.dart' as nav;
 import '../theme/navigation_theme.dart';
+import 'morphing_navigation.dart' show MorphingNavigation;
 
 /// MorphingNavItem represents a single navigation item that morphs between
 /// sidebar and tab bar layouts.
@@ -133,8 +134,8 @@ class _MorphingNavItemState extends State<MorphingNavItem>
   Widget build(BuildContext context) {
     _theme = MorphingNavigationThemeProvider.of(context);
 
-    // Interpolate position
-    final rect = Rect.lerp(widget.sidebarRect, widget.tabBarRect, widget.t)!;
+    // Interpolate position using two-phase iPad-style morph
+    final rect = MorphingNavigation.morphRect(widget.sidebarRect, widget.tabBarRect, widget.t);
 
     // Child items fade out during transition (they collapse into parent)
     if (widget.isChild) {

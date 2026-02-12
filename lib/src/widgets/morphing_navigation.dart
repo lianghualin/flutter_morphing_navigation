@@ -20,6 +20,25 @@ import 'status_panel.dart';
 class MorphingNavigation extends StatefulWidget {
   const MorphingNavigation({super.key});
 
+  /// iPad-style two-phase rect interpolation.
+  ///
+  /// Instead of a plain Rect.lerp (diagonal morph), this collapses the
+  /// sidebar vertically first, then slides horizontally to the tab bar
+  /// position — matching iPadOS behavior.
+  static Rect morphRect(Rect sidebar, Rect tabBar, double t) {
+    // Vertical collapse: fast, done by ~45%
+    final vt = Curves.easeInOut.transform((t / 0.45).clamp(0.0, 1.0));
+    final top = lerpDouble(sidebar.top, tabBar.top, vt)!;
+    final height = lerpDouble(sidebar.height, tabBar.height, vt)!;
+
+    // Horizontal slide: starts at ~30%, finishes at 100%
+    final ht = Curves.easeInOut.transform(((t - 0.30) / 0.70).clamp(0.0, 1.0));
+    final left = lerpDouble(sidebar.left, tabBar.left, ht)!;
+    final width = lerpDouble(sidebar.width, tabBar.width, ht)!;
+
+    return Rect.fromLTWH(left, top, width, height);
+  }
+
   @override
   State<MorphingNavigation> createState() => _MorphingNavigationState();
 }
@@ -159,8 +178,9 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final verticalPadding = 8.0;
 
     // Calculate horizontal position within container
-    // Account for dividers (1px each)
-    final left = containerRect.left + horizontalPadding + index * (itemWidth + 1);
+    // Toggle button is on the left, so items start after toggle + divider
+    final toggleWidth = compact ? 48.0 : 56.0;
+    final left = containerRect.left + horizontalPadding + toggleWidth + 1 + index * (itemWidth + 1);
     final top = containerRect.top + verticalPadding;
     final height = containerRect.height - verticalPadding * 2;
 
@@ -200,7 +220,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final sidebarRect = _getSidebarContainerRect(screenSize);
     final tabBarRect = _getTabBarContainerRect(screenSize, items, compact, isBottom, hasStatus: hasStatus);
 
-    final rect = Rect.lerp(sidebarRect, tabBarRect, t)!;
+    final rect = MorphingNavigation.morphRect(sidebarRect, tabBarRect, t);
     final borderRadius = lerpDouble(16, 32, t)!;
     final blur = lerpDouble(0, _navTheme.glassBlurRadius, t)!;
 
@@ -559,8 +579,8 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final toggleWidth = compact ? 48.0 : 56.0;
     final horizontalPadding = compact ? 8.0 : 12.0;
 
-    // Position after toggle button
-    final left = tabBarRect.left + horizontalPadding + items.length * (itemWidth + 1) + toggleWidth;
+    // Position after all items (toggle is on the left, then items)
+    final left = tabBarRect.left + horizontalPadding + toggleWidth + 1 + items.length * (itemWidth + 1);
 
     return Positioned(
       left: left,
@@ -610,7 +630,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final verticalPadding = 8.0;
 
     final tabBarToggleRect = Rect.fromLTWH(
-      tabBarRect.left + horizontalPadding + items.length * (itemWidth + 1),
+      tabBarRect.left + horizontalPadding,
       tabBarRect.top + verticalPadding,
       toggleWidth,
       tabBarRect.height - verticalPadding * 2,
@@ -620,7 +640,7 @@ class _MorphingNavigationState extends State<MorphingNavigation>
     final remapStart = _showHeader ? 0.1 : 0.0;
     final remapRange = 1.0 - remapStart;
     final remappedT = ((t - remapStart) / remapRange).clamp(0.0, 1.0);
-    final rect = Rect.lerp(sidebarRect, tabBarToggleRect, remappedT)!;
+    final rect = MorphingNavigation.morphRect(sidebarRect, tabBarToggleRect, remappedT);
 
     // Icon transitions - sidebar icon fades out, then tabbar icon fades in
     final sidebarIconOpacity = (1.0 - remappedT * 2).clamp(0.0, 1.0);
